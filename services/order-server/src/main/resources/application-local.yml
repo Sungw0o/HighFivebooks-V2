@@ -23,8 +23,15 @@ spring:
     discovery:
       enabled: false
     openfeign:
+      circuitbreaker:
+        enabled: true
+        group:
+          enabled: true
       client:
         config:
+          default:
+            connectTimeout: ${FEIGN_CONNECT_TIMEOUT_MS:1000}
+            readTimeout: ${FEIGN_READ_TIMEOUT_MS:3000}
           TEAM5-BOOK-SERVER:
             url: ${BOOK_SERVICE_URL:http://localhost:9002}
           TEAM5-MEMBER-SERVER:
@@ -61,3 +68,13 @@ spring:
 eureka:
   client:
     enabled: false
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: ${CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE:20}
+        minimum-number-of-calls: ${CIRCUIT_BREAKER_MINIMUM_CALLS:5}
+        failure-rate-threshold: ${CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD:50}
+        wait-duration-in-open-state: ${CIRCUIT_BREAKER_WAIT_DURATION:10s}
+        permitted-number-of-calls-in-half-open-state: ${CIRCUIT_BREAKER_HALF_OPEN_CALLS:3}
