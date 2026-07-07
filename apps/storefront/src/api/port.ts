@@ -91,6 +91,7 @@ export interface MembersApi {
   createAddress(request: AddressRequest): Promise<AddressResponse>
   updateAddress(addressId: number, request: AddressRequest): Promise<AddressResponse>
   deleteAddress(addressId: number): Promise<void>
+  setDefaultAddress(addressId: number): Promise<AddressResponse>
   getPointBalance(): Promise<PointBalanceResponse>
   getPointHistory(page: number, size: number): Promise<SpringPage<PointHistoryResponse>>
 }

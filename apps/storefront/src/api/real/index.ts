@@ -130,6 +130,8 @@ export const realApi: StorefrontApi = {
     deleteAddress: async (addressId) => {
       await http.delete(`/api/address/${addressId}`)
     },
+    setDefaultAddress: async (addressId) =>
+      (await http.post<AddressResponse>(`/api/address/${addressId}/default`)).data,
     getPointBalance: async () => (await http.get<PointBalanceResponse>('/api/points/balance')).data,
     getPointHistory: async (page, size) =>
       (await http.get<SpringPage<PointHistoryResponse>>('/api/points/history', { params: { page, size } })).data,
