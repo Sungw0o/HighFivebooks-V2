@@ -1,39 +1,32 @@
-package com.nhnacademy.payment_server.config;
+package com.nhnacademy.order_server.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.TopicExchange;
-import org.springframework.amqp.support.converter.MessageConverter;
 
 class RabbitMqConfigTest {
 
+    private final RabbitMqConfig config = new RabbitMqConfig();
+
     @Test
-    void testRabbitMqBeansCreated() {
-        // given
-        RabbitMqConfig config = new RabbitMqConfig();
+    @DisplayName("payment-success-queue는 주문 결제 DLQ로 dead-letter 라우팅된다")
+    void paymentSuccessQueueHasDeadLetterRouting() {
+        Queue queue = config.paymentSuccessQueue();
 
-        // when
-        Queue successQueue = config.paymentSuccessQueue();
-        MessageConverter converter = config.jsonMessageConverter();
-
-        // then
-        assertThat(successQueue).isNotNull();
-        assertThat(successQueue.getName()).isEqualTo(RabbitMqConfig.PAYMENT_SUCCESS_QUEUE);
-        assertThat(successQueue.isDurable()).isTrue();
-        assertThat(successQueue.getArguments())
+        assertThat(queue.getName()).isEqualTo(RabbitMqConfig.PAYMENT_SUCCESS_QUEUE);
+        assertThat(queue.isDurable()).isTrue();
+        assertThat(queue.getArguments())
                 .containsEntry("x-dead-letter-exchange", RabbitMqConfig.ORDER_DEAD_LETTER_EXCHANGE)
                 .containsEntry("x-dead-letter-routing-key", RabbitMqConfig.ORDER_PAYMENT_DEAD_LETTER_ROUTING_KEY);
-
-        assertThat(converter).isNotNull();
     }
 
     @Test
-    void testOrderPaymentDeadLetterBeansCreated() {
-        RabbitMqConfig config = new RabbitMqConfig();
-
+    @DisplayName("주문 결제 DLQ exchange/queue/binding을 선언한다")
+    void orderPaymentDeadLetterTopology() {
         TopicExchange exchange = config.orderDeadLetterExchange();
         Queue dlq = config.orderPaymentDeadLetterQueue();
         Binding binding = config.orderPaymentDeadLetterBinding();

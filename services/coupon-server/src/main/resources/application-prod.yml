@@ -35,6 +35,9 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
+  batch:
+    job:
+      enabled: false
 
 eureka:
   client:

@@ -50,7 +50,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepository orderRepository;
@@ -151,6 +150,7 @@ public class OrderServiceImpl implements OrderService {
     // =====================================================================================
 
     @Override
+    @Transactional
     public void processPaymentSuccessMessage(PaymentSuccessMessage message) {
         Order order = orderRepository.findById(message.getOrderId())
                 .orElseThrow(() -> new OrderException(OrderErrorCode.ORDER_NOT_FOUND));
@@ -159,15 +159,13 @@ public class OrderServiceImpl implements OrderService {
             return;
         }
 
-        // 금액 검증 (테스트 통과용)
-        if (order.getPaymentAmount() != message.getTotalAmount().intValue()) {
+        if (!Objects.equals(order.getPaymentAmount(), message.getTotalAmount().intValue())) {
             throw new OrderException(OrderErrorCode.INVALID_REQUEST);
         }
 
         order.updateStatus(DeliveryStatus.PREPARING);
         order.setPaymentKey(message.getPaymentKey());
 
-        // 쿠폰 사용 확정 (테스트 통과용)
         if (order.getCouponId() != null) {
             couponClient.useCoupon(order.getUserId(), new MemberCouponUseRequest(order.getCouponId(), order.getId()));
         }
@@ -176,6 +174,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
     public void purchaseConfirm(Long orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new OrderException(OrderErrorCode.ORDER_NOT_FOUND));
@@ -215,6 +214,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
     public void autoCompleteDelivery() {
         LocalDateTime threshold = LocalDateTime.now().minusDays(3);
         orderRepository.findByDeliveryStatusAndDelivery_ActualShipDateBefore(DeliveryStatus.DELIVERING, threshold)
@@ -227,6 +227,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
     public void autoConfirmPurchase() {
         LocalDateTime threshold = LocalDateTime.now().minusDays(10);
         orderRepository.findByDeliveryStatusAndDelivery_ActualCompletionDateBefore(DeliveryStatus.DELIVERY_COMPLETED,
@@ -235,6 +236,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional
     public void cancelExpiredOrders() {
         LocalDateTime threshold = LocalDateTime.now().minusHours(24);
 

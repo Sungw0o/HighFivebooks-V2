@@ -1,6 +1,7 @@
 package com.nhnacademy.order_server.listener;
 
 import com.nhnacademy.order_server.dto.message.PaymentSuccessMessage;
+import com.nhnacademy.order_server.config.RabbitMqConfig;
 import com.nhnacademy.order_server.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +15,7 @@ public class PaymentMessageListener {
 
     private final OrderService orderService;
 
-    @RabbitListener(queues = "payment-success-queue")
+    @RabbitListener(queues = RabbitMqConfig.PAYMENT_SUCCESS_QUEUE)
     public void handlePaymentSuccess(PaymentSuccessMessage message) {
         log.info("[RabbitMQ] 결제 성공 메시지 수신: orderId={}, paymentKey={}", message.getOrderId(), message.getPaymentKey());
 

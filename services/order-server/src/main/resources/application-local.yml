@@ -1,0 +1,63 @@
+server:
+  port: ${ORDER_SERVER_PORT:9006}
+
+book:
+  service:
+    url: ${BOOK_SERVICE_URL:http://localhost:9002}
+member:
+  service:
+    url: ${MEMBER_SERVICE_URL:http://localhost:9001}
+coupon:
+  service:
+    url: ${COUPON_SERVICE_URL:http://localhost:9004}
+payment:
+  service:
+    url: ${PAYMENT_SERVICE_URL:http://localhost:9005}
+
+spring:
+  config:
+    import: optional:file:../../.env[.properties]
+  cloud:
+    config:
+      enabled: false
+    discovery:
+      enabled: false
+    openfeign:
+      client:
+        config:
+          TEAM5-BOOK-SERVER:
+            url: ${BOOK_SERVICE_URL:http://localhost:9002}
+          TEAM5-MEMBER-SERVER:
+            url: ${MEMBER_SERVICE_URL:http://localhost:9001}
+          TEAM5-COUPON-SERVER:
+            url: ${COUPON_SERVICE_URL:http://localhost:9004}
+          TEAM5-PAYMENT-SERVER:
+            url: ${PAYMENT_SERVICE_URL:http://localhost:9005}
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3307}/${ORDER_DB_NAME:highfive_order}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${ORDER_DB_USERNAME:order_user}
+    password: ${ORDER_DB_PASSWORD:order_pass}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: Asia/Seoul
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:highfive}
+    password: ${RABBITMQ_PASSWORD:highfive}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+      password: ${REDIS_PASSWORD:highfive_redis}
+      database: ${REDIS_DATABASE:0}
+
+eureka:
+  client:
+    enabled: false
