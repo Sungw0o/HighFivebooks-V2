@@ -9,6 +9,7 @@ import { Magnet } from '../components/motion/Magnet'
 import { FadeIn } from '../components/motion/FadeIn'
 import { ErrorState } from '../components/states'
 import { formatDate, formatPrice, formatRating } from '../lib/format'
+import { cartBadge } from '../store/cartBadge'
 
 type TabKey = 'reviews' | 'about' | 'toc' | 'author'
 
@@ -99,12 +100,15 @@ export function BookDetailPage() {
 
   const addToCart = async () => {
     await api.cart.addItem(bookId, 1)
+    cartBadge.increment()
+    cartBadge.refresh()
     setCartAdded(true)
     setTimeout(() => setCartAdded(false), 2000)
   }
 
   const buyNow = async () => {
     await api.cart.addItem(bookId, 1)
+    cartBadge.refresh()
     navigate('/checkout')
   }
 
@@ -126,7 +130,7 @@ export function BookDetailPage() {
       ) : error || !book ? (
         <ErrorState onRetry={() => void fetchAll()} />
       ) : (
-        <main className="px-10 pb-24">
+        <main className="px-4 pb-24 sm:px-10">
           <div className="grid gap-16 pt-14 md:grid-cols-[320px_1fr]">
             {/* 좌: 표지 (마그넷) */}
             <FadeIn>

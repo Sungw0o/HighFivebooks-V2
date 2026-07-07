@@ -8,6 +8,7 @@ import { BookCover } from '../components/BookCover'
 import { EmptyState, ErrorState } from '../components/states'
 import { FadeIn } from '../components/motion/FadeIn'
 import { formatPrice } from '../lib/format'
+import { cartBadge } from '../store/cartBadge'
 
 function CartSkeleton() {
   return (
@@ -53,6 +54,7 @@ export function CartPage() {
     try {
       await action()
       setCart(await api.cart.getCart())
+      cartBadge.refresh()
     } catch {
       setError(true)
     } finally {
@@ -76,7 +78,7 @@ export function CartPage() {
     <div className="min-h-screen bg-ink">
       <SlimHeader />
 
-      <main className="px-10 pb-24">
+      <main className="px-4 pb-24 sm:px-10">
         <FadeIn>
           <h1
             className="pt-10 font-display font-black uppercase leading-none text-gradient-heading"
