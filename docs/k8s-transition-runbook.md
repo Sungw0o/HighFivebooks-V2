@@ -94,6 +94,27 @@ kind에서 nginx ingress를 쓰는 경우 ingress controller 설치가 먼저 �
 
 ## 검증 포인트
 
+기본 배포 검증은 스모크 스크립트로 실행한다.
+
+```powershell
+.\scripts\k8s-smoke.ps1
+```
+
+스크립트가 확인하는 것:
+
+- Deployment/StatefulSet rollout 완료
+- 각 Service endpoint 존재
+- order-server가 Kubernetes Service DNS를 환경변수로 사용
+- order-server의 MySQL/RabbitMQ 연결 로그 존재
+- actuator readiness가 노출된 서비스의 내부 DNS HTTP 응답
+
+주의:
+
+- `payment-server`는 현재 actuator 의존성이 없어 `/actuator/health`를 필수 검증으로 보지 않는다.
+- 일부 서비스의 `/actuator/health` 전체 상태는 외부 health indicator 때문에 `DOWN`이 될 수 있으므로 readiness endpoint를 우선 확인한다.
+
+수동으로 확인할 때는 아래 명령을 사용한다.
+
 ```powershell
 kubectl -n highfivebooks rollout status deploy/order-server
 kubectl -n highfivebooks logs deploy/order-server
