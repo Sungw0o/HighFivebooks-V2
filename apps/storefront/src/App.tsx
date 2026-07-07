@@ -15,6 +15,7 @@ const MyPage = lazy(() => import('./pages/MyPage').then((m) => ({ default: m.MyP
 const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })))
 const SignupPage = lazy(() => import('./pages/SignupPage').then((m) => ({ default: m.SignupPage })))
 const AccountFindPage = lazy(() => import('./pages/AccountFindPage').then((m) => ({ default: m.AccountFindPage })))
+const GuestOrderPage = lazy(() => import('./pages/GuestOrderPage').then((m) => ({ default: m.GuestOrderPage })))
 const ReviewNewPage = lazy(() => import('./pages/ReviewNewPage').then((m) => ({ default: m.ReviewNewPage })))
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then((m) => ({ default: m.AdminLayout })))
 const AdminDashboardPage = lazy(() =>
@@ -58,6 +59,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/account/find" element={<AccountFindPage />} />
+          <Route path="/order/guest" element={<GuestOrderPage />} />
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminDashboardPage />} />
             <Route path="books" element={<AdminBooksPage />} />

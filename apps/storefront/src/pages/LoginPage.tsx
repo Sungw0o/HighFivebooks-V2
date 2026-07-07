@@ -104,6 +104,10 @@ export function LoginPage() {
             <Link to="/account/find" className="transition-opacity hover:opacity-70">
               아이디/비밀번호 찾기
             </Link>
+            <span aria-hidden="true">·</span>
+            <Link to="/order/guest" className="transition-opacity hover:opacity-70">
+              비회원 주문 조회
+            </Link>
           </div>
         </FadeIn>
       </main>
