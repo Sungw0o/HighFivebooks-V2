@@ -90,6 +90,33 @@ cd apps/storefront
 npm run build
 ```
 
+## Commit Message Rules
+
+커밋 메시지는 깃모지와 한글 요약을 사용한다.
+
+형식:
+
+```text
+<gitmoji> <type>: <한글 요약>
+```
+
+예시:
+
+```text
+✨ feat: React 스토어프론트 홈 화면 추가
+🐛 fix: 장바구니 수량 변경 오류 수정
+📝 docs: 스토어프론트 API 계약 문서 갱신
+💄 style: 홈 화면 섹션 간격 조정
+```
+
+규칙:
+
+- 요약은 한글로 쓴다.
+- 마침표로 끝내지 않는다.
+- 한 커밋은 하나의 의도만 담는다.
+- `node_modules`, `dist`, `.env`, Secret/API key는 커밋하지 않는다.
+- 작업 후 가능한 경우 `npm run build`를 통과시킨다.
+
 ## Backend Context To Preserve
 
 - MSA 유지.

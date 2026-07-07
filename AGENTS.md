@@ -341,7 +341,55 @@ cd services/order-server
 
 ---
 
-## 10. Claude Prompt Template
+## 10. Commit Message Rules
+
+이 저장소의 커밋 메시지는 깃모지와 한글 설명을 사용한다.
+
+형식:
+
+```text
+<gitmoji> <type>: <한글 요약>
+```
+
+예시:
+
+```text
+✨ feat: React 스토어프론트 초기 구조 추가
+🐛 fix: 주문 서버 RabbitMQ 큐 선언 누락 수정
+📝 docs: 런타임 환경 설정 문서 추가
+♻️ refactor: 주문 Feign 클라이언트 URL 설정 정리
+✅ test: 주문 서버 컨텍스트 테스트 Rabbit 의존성 제거
+🔧 chore: 로컬 Docker Compose 설정 추가
+🚀 deploy: Kubernetes 배포 매니페스트 추가
+```
+
+허용 type:
+
+```text
+feat      기능 추가
+fix       버그 수정
+docs      문서 변경
+refactor  동작 변경 없는 구조 개선
+test      테스트 추가/수정
+chore     빌드, 설정, 의존성, 기타 작업
+style     포맷팅, CSS, UI 스타일 변경
+perf      성능 개선
+deploy    배포/인프라 변경
+```
+
+규칙:
+
+1. 요약은 한글로 쓴다.
+2. 마침표로 끝내지 않는다.
+3. 한 커밋은 하나의 의도를 가진다.
+4. Secret, `.env`, API key, DB password는 커밋하지 않는다.
+5. 프론트 작업은 가능하면 `✨ feat`, `💄 style`, `🐛 fix`, `📝 docs` 중 하나를 사용한다.
+6. 백엔드 리팩토링은 가능하면 `♻️ refactor`, `🐛 fix`, `✅ test`, `🔧 chore` 중 하나를 사용한다.
+7. 커밋 전 가능한 검증 명령을 실행하고, 실패했다면 커밋 메시지 본문이나 완료 보고에 명시한다.
+
+---
+
+## 11. Claude Prompt Template
 
 ```text
 HighFiveBooks V2 프론트 작업을 맡아줘.
