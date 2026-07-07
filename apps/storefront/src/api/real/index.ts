@@ -3,6 +3,7 @@ import { tokenStore } from '../tokenStore'
 import type {
   AddressListResponse,
   AddressResponse,
+  BookInfoDto,
   BookResponse,
   BookReviewResponse,
   CartListResponse,
@@ -10,6 +11,7 @@ import type {
   CommonPageResponse,
   CouponCalculationResponseDto,
   CouponResponseDto,
+  DailySalesResponse,
   DeliveryPolicyResponse,
   GuestOrderDetailResponse,
   MemberCouponResponseDto,
@@ -21,6 +23,7 @@ import type {
   OrderValidationInfoResponse,
   PaymentConfirmResponse,
   PaymentMethodResponse,
+  PaymentStatsResponse,
   PointBalanceResponse,
   PointHistoryResponse,
   ReviewCreateResponse,
@@ -98,6 +101,16 @@ export const realApi: StorefrontApi = {
       await http.post('/api/emails/signup', { email })
     },
     verifyEmailCode: async (request) => (await http.post<string>('/api/emails/verify', request)).data,
+    sendFindIdCode: async (email) => {
+      await http.post('/api/emails/find-id', { email })
+    },
+    findLoginId: async (request) => (await http.post<string>('/api/accounts/find/id/verify', request)).data,
+    sendPasswordResetCode: async (email) => {
+      await http.post('/api/emails/password-reset', { email })
+    },
+    resetPassword: async (request) => {
+      await http.post('/api/accounts/find/password', request)
+    },
   },
 
   members: {
@@ -190,5 +203,27 @@ export const realApi: StorefrontApi = {
   payments: {
     getMethods: async () => (await http.get<PaymentMethodResponse[]>('/api/payments/methods')).data,
     confirm: async (request) => (await http.post<PaymentConfirmResponse>('/api/payments/confirm', request)).data,
+  },
+
+  admin: {
+    getStatsSummary: async () => (await http.get<PaymentStatsResponse>('/api/payments/admin/stats/summary')).data,
+    getDailySales: async (startDate, endDate) =>
+      (await http.get<DailySalesResponse[]>('/api/payments/admin/stats/daily', { params: { startDate, endDate } }))
+        .data,
+    getBooks: async (page, size) =>
+      (await http.get<SpringPage<BookResponse>>('/api/admin/books', { params: { page, size } })).data,
+    createBook: async (dto) => (await http.post<BookInfoDto>('/api/admin/books', dto)).data,
+    updateBook: async (bookId, dto) => (await http.put<BookResponse>(`/api/admin/books/${bookId}`, dto)).data,
+    deleteBook: async (bookId) => {
+      await http.delete(`/api/admin/books/${bookId}`)
+    },
+    searchBookByIsbn: async (isbn) =>
+      (await http.get<BookInfoDto>('/api/admin/books/search-api', { params: { isbn } })).data,
+    getOrders: async (page, size, status) =>
+      (await http.get<CommonPageResponse<OrderResponse>>('/api/admin/orders', { params: { page, size, status } }))
+        .data,
+    updateOrderStatus: async (orderId, request) => {
+      await http.put(`/api/admin/orders/${orderId}/status`, request)
+    },
   },
 }

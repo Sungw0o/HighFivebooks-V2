@@ -2,6 +2,7 @@ import type {
   AddressListResponse,
   AddressRequest,
   AddressResponse,
+  BookInfoDto,
   BookResponse,
   BookReviewResponse,
   BookSortType,
@@ -10,6 +11,7 @@ import type {
   CommonPageResponse,
   CouponCalculationResponseDto,
   CouponResponseDto,
+  DailySalesResponse,
   DeliveryPolicyResponse,
   EmailVerifyRequest,
   GuestOrderDetailResponse,
@@ -23,10 +25,13 @@ import type {
   OrderReturnCheckResponse,
   OrderReturnRequest,
   OrderResponse,
+  OrderStatusUpdateRequest,
   OrderValidationInfoResponse,
+  PasswordResetRequest,
   PaymentConfirmRequest,
   PaymentConfirmResponse,
   PaymentMethodResponse,
+  PaymentStatsResponse,
   PointBalanceResponse,
   PointHistoryResponse,
   ReviewCreateRequest,
@@ -71,6 +76,11 @@ export interface AuthApi {
   checkLoginId(loginId: string): Promise<boolean>
   sendSignupEmailCode(email: string): Promise<void>
   verifyEmailCode(request: EmailVerifyRequest): Promise<string>
+  sendFindIdCode(email: string): Promise<void>
+  /** 인증 성공 시 loginId 반환 */
+  findLoginId(request: EmailVerifyRequest): Promise<string>
+  sendPasswordResetCode(email: string): Promise<void>
+  resetPassword(request: PasswordResetRequest): Promise<void>
 }
 
 export interface MembersApi {
@@ -123,6 +133,19 @@ export interface PaymentsApi {
   confirm(request: PaymentConfirmRequest): Promise<PaymentConfirmResponse>
 }
 
+export interface AdminApi {
+  getStatsSummary(): Promise<PaymentStatsResponse>
+  getDailySales(startDate?: string, endDate?: string): Promise<DailySalesResponse[]>
+  getBooks(page: number, size: number): Promise<SpringPage<BookResponse>>
+  createBook(dto: BookInfoDto): Promise<BookInfoDto>
+  updateBook(bookId: number, dto: BookInfoDto): Promise<BookResponse>
+  deleteBook(bookId: number): Promise<void>
+  /** 알라딘 ISBN 조회로 도서 정보 자동 채움 */
+  searchBookByIsbn(isbn: string): Promise<BookInfoDto>
+  getOrders(page: number, size: number, status?: string): Promise<CommonPageResponse<OrderResponse>>
+  updateOrderStatus(orderId: number, request: OrderStatusUpdateRequest): Promise<void>
+}
+
 export interface StorefrontApi {
   books: BooksApi
   reviews: ReviewsApi
@@ -132,4 +155,5 @@ export interface StorefrontApi {
   orders: OrdersApi
   coupons: CouponsApi
   payments: PaymentsApi
+  admin: AdminApi
 }

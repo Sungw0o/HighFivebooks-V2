@@ -40,6 +40,17 @@ export type EmailType = 'SIGNUP' | 'RESET_PASSWORD' | 'FIND_ID' | 'ACTIVATE'
 /** order-server ReturnReason */
 export type ReturnReason = 'SIMPLE_CHANGE' | 'PRODUCT_DEFECT' | 'DELIVERY_DELAY' | 'WRONG_DELIVERY'
 
+/** order-server DeliveryStatus (OrderResponse.status) */
+export type DeliveryStatus =
+  | 'PAYMENT_WAITING'
+  | 'PREPARING'
+  | 'DELIVERING'
+  | 'DELIVERY_COMPLETED'
+  | 'PURCHASE_CONFIRMED'
+  | 'CANCELED'
+  | 'RETURN_REQUESTED'
+  | 'RETURN_COMPLETED'
+
 // ---------- book-server ----------
 
 export interface CategoryResponse {
@@ -153,6 +164,15 @@ export interface MemberUpdateRequest {
   phone?: string
   gender?: Gender
   birthDate?: string
+}
+
+/** POST /api/accounts/find/password */
+export interface PasswordResetRequest {
+  loginId: string
+  email: string
+  authCode: string
+  /** 8~20자, 영문+숫자 포함 */
+  newPassword: string
 }
 
 // ---------- member-server: cart / point / address ----------
@@ -377,4 +397,42 @@ export interface PaymentConfirmResponse {
   status: string
   amount: number
   orderId: number
+}
+
+// ---------- 관리자 ----------
+
+/** payment-server GET /api/payments/admin/stats/summary */
+export interface PaymentStatsResponse {
+  totalSalesAmount: number
+  totalCancelAmount: number
+  netSalesAmount: number
+  totalTransactionCount: number
+  successCount: number
+  cancelCount: number
+}
+
+/** payment-server GET /api/payments/admin/stats/daily */
+export interface DailySalesResponse {
+  date: string
+  dailyTotalAmount: number
+  dailyCount: number
+}
+
+/** book-server 관리자 도서 등록/수정 DTO. 할인율·재고·판매상태 필드 없음(추가 필요, 계약 문서 참조) */
+export interface BookInfoDto {
+  isbn: string
+  title: string
+  authors: string[]
+  publisher: string
+  publishedDate: string
+  price: number
+  image: string | null
+  description: string | null
+  categoryId: number | null
+}
+
+/** order-server PUT /api/admin/orders/{orderId}/status */
+export interface OrderStatusUpdateRequest {
+  status: DeliveryStatus
+  trackingNumber?: string | null
 }

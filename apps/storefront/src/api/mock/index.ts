@@ -1,5 +1,6 @@
 import type {
   AddressResponse,
+  BookInfoDto,
   BookResponse,
   BookReviewResponse,
   BookSortType,
@@ -217,6 +218,10 @@ export const mockApi: StorefrontApi = {
     checkLoginId: (loginId) => delay(loginId !== 'taken'),
     sendSignupEmailCode: () => delay(undefined),
     verifyEmailCode: () => delay('인증 성공'),
+    sendFindIdCode: () => delay(undefined),
+    findLoginId: () => delay('bongsik01'),
+    sendPasswordResetCode: () => delay(undefined),
+    resetPassword: () => delay(undefined),
   },
 
   members: {
@@ -288,7 +293,7 @@ export const mockApi: StorefrontApi = {
         userId: request.userId ?? null,
         orderName,
         orderDate: new Date().toISOString(),
-        status: 'PENDING',
+        status: 'PAYMENT_WAITING',
         totalPrice: total,
         trackingNumber: '',
         items,
@@ -309,7 +314,7 @@ export const mockApi: StorefrontApi = {
     },
     confirm: (orderId) => {
       const found = myOrders.find((o) => o.id === orderId)
-      if (found) found.status = 'CONFIRMED'
+      if (found) found.status = 'PURCHASE_CONFIRMED'
       return delay(undefined)
     },
     getWrappers: () =>
@@ -375,6 +380,103 @@ export const mockApi: StorefrontApi = {
     calculate: (_couponId, totalOrderPrice) => {
       const discountAmount = Math.floor(totalOrderPrice * 0.1)
       return delay({ discountAmount, finalPrice: totalOrderPrice - discountAmount })
+    },
+  },
+
+  admin: {
+    getStatsSummary: () =>
+      delay({
+        totalSalesAmount: 4823000,
+        totalCancelAmount: 312000,
+        netSalesAmount: 4511000,
+        totalTransactionCount: 291,
+        successCount: 274,
+        cancelCount: 17,
+      }),
+    getDailySales: () => {
+      const today = new Date()
+      const days = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(today)
+        d.setDate(d.getDate() - (6 - i))
+        return {
+          date: d.toISOString().slice(0, 10),
+          dailyTotalAmount: 400000 + ((i * 137) % 5) * 90000,
+          dailyCount: 18 + ((i * 7) % 11),
+        }
+      })
+      return delay(days)
+    },
+    getBooks: (page, size) => delay(toPage(MOCK_BOOKS, page, size)),
+    createBook: (dto) => {
+      const nextId = Math.max(...MOCK_BOOKS.map((b) => b.id)) + 1
+      MOCK_BOOKS.push({
+        id: nextId,
+        title: dto.title,
+        author: dto.authors.join(', '),
+        isbn: dto.isbn,
+        price: dto.price,
+        imageUrl: dto.image,
+        categories: null,
+        tags: null,
+        content: dto.description,
+        publisher: dto.publisher,
+        pubDate: dto.publishedDate,
+        avgRating: null,
+        reviewCount: 0,
+        aiSummary: null,
+        aiReviewSummary: null,
+        categoryId: dto.categoryId,
+        parentId: null,
+      })
+      return delay(dto)
+    },
+    updateBook: (bookId, dto) => {
+      const idx = MOCK_BOOKS.findIndex((b) => b.id === bookId)
+      if (idx < 0) return Promise.reject(new Error(`Book not found: ${bookId}`))
+      MOCK_BOOKS[idx] = {
+        ...MOCK_BOOKS[idx],
+        title: dto.title,
+        author: dto.authors.join(', '),
+        isbn: dto.isbn,
+        price: dto.price,
+        imageUrl: dto.image,
+        content: dto.description,
+        publisher: dto.publisher,
+        pubDate: dto.publishedDate,
+        categoryId: dto.categoryId,
+      }
+      return delay(MOCK_BOOKS[idx])
+    },
+    deleteBook: (bookId) => {
+      const idx = MOCK_BOOKS.findIndex((b) => b.id === bookId)
+      if (idx >= 0) MOCK_BOOKS.splice(idx, 1)
+      return delay(undefined)
+    },
+    searchBookByIsbn: (isbn) => {
+      const dto: BookInfoDto = {
+        isbn,
+        title: '알라딘에서 찾은 책',
+        authors: ['미상'],
+        publisher: '알라딘',
+        publishedDate: '2026-01-01',
+        price: 15000,
+        image: null,
+        description: 'ISBN 조회로 채워진 데모 데이터입니다.',
+        categoryId: 1,
+      }
+      return delay(dto)
+    },
+    getOrders: (page, size, status) => {
+      const all = status ? myOrders.filter((o) => o.status === status) : myOrders
+      return delay(toCommonPage(all, page, size))
+    },
+    updateOrderStatus: (orderId, request) => {
+      const found = myOrders.find((o) => o.id === orderId)
+      if (found) {
+        found.status = request.status
+        if (request.trackingNumber) found.trackingNumber = request.trackingNumber
+      }
+      return delay(undefined)
     },
   },
 
