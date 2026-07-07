@@ -145,7 +145,7 @@ export function BooksPage() {
     <div className="min-h-screen bg-ink">
       <SlimHeader />
 
-      <main className="px-10 pb-24">
+      <main className="px-4 pb-24 sm:px-10">
         <FadeIn>
           <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2 pt-10">
             <h1
@@ -189,7 +189,11 @@ export function BooksPage() {
 
         <div className="mt-12 grid gap-12 lg:grid-cols-[200px_1fr]">
           {/* 필터 사이드바 (와이어프레임 2d) — 서버 미지원으로 현재 페이지 클라이언트 필터 */}
-          <aside className="flex flex-col gap-10">
+          <details className="lg:open" open>
+            <summary className="cursor-pointer list-none text-xs font-medium uppercase text-body/55 lg:hidden" style={{ letterSpacing: '0.2em' }}>
+              필터 열기 ▾
+            </summary>
+            <aside className="mt-4 flex flex-col gap-10 lg:mt-0">
             <section>
               <h2 className="text-xs font-medium uppercase text-body/55" style={{ letterSpacing: '0.2em' }}>
                 가격대
@@ -233,7 +237,8 @@ export function BooksPage() {
                 </ul>
               </section>
             )}
-          </aside>
+            </aside>
+          </details>
 
           {/* 결과 영역 */}
           <div>

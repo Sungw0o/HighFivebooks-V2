@@ -16,7 +16,7 @@ interface HeroSectionProps {
  */
 export function HeroSection({ monthlyBook }: HeroSectionProps) {
   return (
-    <section className="relative flex h-screen flex-col justify-between overflow-hidden px-10 pb-10 pt-8">
+    <section className="relative flex h-screen flex-col justify-between overflow-hidden px-4 pb-10 pt-8 sm:px-10">
       <FadeIn delay={0} y={-20}>
         <HomeNav />
       </FadeIn>
@@ -30,7 +30,7 @@ export function HeroSection({ monthlyBook }: HeroSectionProps) {
         </h1>
       </FadeIn>
 
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-end sm:justify-between">
         <FadeIn delay={0.35}>
           <p
             className="max-w-[260px] text-sm font-light uppercase leading-relaxed text-body/70"
@@ -60,7 +60,7 @@ export function HeroSection({ monthlyBook }: HeroSectionProps) {
                     author={monthlyBook.author}
                     imageUrl={monthlyBook.imageUrl}
                     radius={20}
-                    style={{ width: 340, height: 470 }}
+                    className="h-[260px] w-[190px] sm:h-[470px] sm:w-[340px]"
                   />
                 </Link>
               </Magnet>
