@@ -90,7 +90,7 @@ $curlScript = @'
 set -eu
 sleep 1
 
-required="book-server:/actuator/health/readiness member-server:/actuator/health/readiness coupon-server:/actuator/health/readiness order-server:/actuator/health/readiness"
+required="book-server:/actuator/health/readiness member-server:/actuator/health/readiness coupon-server:/actuator/health/readiness payment-server:/actuator/health/readiness order-server:/actuator/health/readiness"
 for item in $required; do
   svc="${item%%:*}"
   path="${item#*:}"
@@ -99,10 +99,6 @@ for item in $required; do
   echo "$svc$path -> $code $body"
   test "$code" = "200"
 done
-
-code="$(curl -sS -o /tmp/body -w "%{http_code}" "http://payment-server:8080/actuator/health" || true)"
-body="$(cat /tmp/body 2>/dev/null || true)"
-echo "payment-server/actuator/health optional -> $code $body"
 '@
 
 Invoke-Kubectl "-n", $Namespace, "run", "k8s-smoke-curl", "--rm", "-i", "--restart=Never", "--image=$CurlImage", "--command", "--", "sh", "-c", $curlScript
