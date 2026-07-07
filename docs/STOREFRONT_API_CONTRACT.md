@@ -133,6 +133,13 @@
 - **사용 가능 쿠폰**: `GET /api/coupons/members/order?bookIds=&categoryIds=` (선택 파라미터)
 - **리뷰 등록**: multipart `request` part는 `application/json` Blob, `content`는 10~1000자
 
+## 관리자 화면 추가 확인 사항 (2026-07-08)
+- **DeliveryStatus 실제 enum**: `PAYMENT_WAITING | PREPARING | DELIVERING | DELIVERY_COMPLETED | PURCHASE_CONFIRMED | CANCELED | RETURN_REQUESTED | RETURN_COMPLETED`
+- **주문 상태 변경**: `PUT /api/admin/orders/{orderId}/status` body `{status, trackingNumber?}`; 목록은 `?status=` 필터 지원
+- **매출 통계**: `GET /api/payments/admin/stats/summary` → `{totalSalesAmount, totalCancelAmount, netSalesAmount, totalTransactionCount, successCount, cancelCount}`, `GET .../daily?startDate&endDate`(선택) → `{date, dailyTotalAmount, dailyCount}[]`
+- **BookInfoDto**: `{isbn, title, authors[], publisher, publishedDate, price, image, description, categoryId}` — **할인율·재고·판매상태 필드 없음**(도서 관리 화면 요구사항 대비 추가 필요)
+- **재고**: Book 엔티티에는 `stock` 있으나 BookResponse/BookInfoDto에 미노출 → 관리자 재고 열·재고 부족 리스트 구현 불가 (노출 API 추가 필요)
+
 ## 프론트 전제
 - Base URL: `VITE_API_BASE_URL` 환경변수 (Ingress 단일 진입 가정, 경로 프리픽스로 서비스 라우팅)
 - 페이지 응답 2종 유의: Spring `Page<T>`(book/coupon/member) vs `CommonPageResponse<T>`(order)
