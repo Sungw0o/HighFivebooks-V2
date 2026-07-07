@@ -1,0 +1,24 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Java
+target/
+*.class
+
+# Node
+node_modules/
+dist/
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+
+# Local env
+.env
+.env.*
+!.env.example
+

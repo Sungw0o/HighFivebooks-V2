@@ -1,0 +1,50 @@
+# 통합테스트를 위해 외부 서비스 비활성화 + h2 + jwt 더미값을 사용하는 test.yml
+spring:
+  config:
+    import: "optional:file:./"
+  cloud:
+    config:
+      enabled: false
+
+  datasource:
+    # H2 인메모리 모드 (MySQL 호환 모드)
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: "" # 비밀번호 없음
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect # Hibernate가 운영 환경과 동일한 SQL생성
+
+  sql:
+    init:
+      mode: never
+
+# MSA & RabbitMQ 끄기
+eureka:
+  client:
+    enabled: false
+app:
+  rabbitmq:
+    enabled: false
+management:
+  health:
+    rabbit:
+      enabled: false
+
+# JWT 테스트용 가짜 키
+jwt:
+  secret: "test_key_for_unit_test_only_9999999999"
+  expiration_time: 3600000
+  refresh_expiration_time: 86400000
+
+
+encrypt:
+  secret-key: "test_key_for_unit_test_only_1111"
+

@@ -1,0 +1,189 @@
+.app-shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: #172026;
+  color: #f7f7f2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 28px;
+}
+
+.sidebar nav {
+  display: grid;
+  gap: 10px;
+}
+
+.sidebar a {
+  color: #cdd7d6;
+  text-decoration: none;
+  padding: 10px 0;
+}
+
+.workspace {
+  background: #f6f4ef;
+  padding: 28px;
+}
+
+.topbar {
+  align-items: center;
+  display: flex;
+  gap: 24px;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.topbar button {
+  background: #12664f;
+  border: 0;
+  border-radius: 6px;
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+  min-height: 42px;
+  padding: 0 18px;
+}
+
+.summary-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 20px;
+}
+
+.summary-grid div,
+.panel {
+  background: #ffffff;
+  border: 1px solid #ddd8cd;
+  border-radius: 8px;
+}
+
+.summary-grid div {
+  display: grid;
+  gap: 8px;
+  min-height: 80px;
+  padding: 18px;
+}
+
+.summary-grid span,
+.eyebrow,
+.panel-title span,
+.service-table span,
+.service-table em {
+  color: #60706c;
+  font-size: 13px;
+}
+
+.eyebrow {
+  font-weight: 800;
+  letter-spacing: 0;
+  margin: 0 0 8px;
+  text-transform: uppercase;
+}
+
+.panel {
+  padding: 20px;
+}
+
+.panel-title {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.service-table {
+  display: grid;
+  gap: 10px;
+}
+
+.service-table article {
+  align-items: center;
+  border-top: 1px solid #eee8dc;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 120px minmax(0, 1fr) 160px;
+  min-height: 52px;
+}
+
+.service-table article:first-child {
+  border-top: 0;
+}
+
+.service-table em {
+  font-style: normal;
+  text-align: right;
+}
+
+.two-column {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  margin-top: 20px;
+}
+
+.workflow-list {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.workflow-list li {
+  background: #eef4ef;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.migration-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+
+.migration-list div {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.migration-list dt {
+  color: #4b5856;
+  font-weight: 700;
+}
+
+.migration-list dd {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .app-shell,
+  .summary-grid,
+  .two-column {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    gap: 24px;
+  }
+
+  .topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .service-table article {
+    align-items: start;
+    grid-template-columns: 1fr;
+    padding: 14px 0;
+  }
+
+  .service-table em {
+    text-align: left;
+  }
+}

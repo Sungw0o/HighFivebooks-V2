@@ -1,0 +1,74 @@
+{
+  "settings": {
+    "analysis": {
+      "char_filter": {
+        "html_strip_filter": {
+          "type": "html_strip"
+        }
+      },
+      "tokenizer": {
+        "nori_user_dict": {
+          "type": "nori_tokenizer",
+          "decompound_mode": "mixed"
+        }
+      },
+      "filter": {
+        "synonym_filter": {
+          "type": "synonym",
+          "synonyms": [
+            "자바, Java",
+            "스프링, Spring",
+            "JPA, Hibernate"
+          ]
+        },
+        "nori_pos_filter": {
+          "type": "nori_part_of_speech",
+          "stoptags": [
+            "E", "IC", "J", "MAG", "MAJ", "MM", "SP", "SSC", "SSO", "SC", "SE", "XPN", "XSA", "XSN", "XSV", "UNA", "NA", "VSV"
+          ]
+        }
+      },
+      "analyzer": {
+        "korean_html_analyzer": {
+          "type": "custom",
+          "char_filter": ["html_strip_filter"],
+          "tokenizer": "nori_user_dict",
+          "filter": [
+            "nori_readingform",
+            "lowercase",
+            "nori_pos_filter",
+            "synonym_filter"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "bookId": { "type": "keyword" },
+
+      "title": {
+        "type": "text",
+        "analyzer": "korean_html_analyzer",
+        "search_analyzer": "korean_html_analyzer"
+      },
+      "author": { "type": "text", "analyzer": "korean_html_analyzer" },
+      "publisher": { "type": "text", "analyzer": "korean_html_analyzer" },
+      "content": { "type": "text", "analyzer": "korean_html_analyzer" },
+      "tags": { "type": "text", "analyzer": "korean_html_analyzer" },
+
+      "isbn": { "type": "keyword" },
+      "publishedDate": { "type": "date" },
+      "price": { "type": "integer" },
+      "avgRating": { "type": "float" },
+      "reviewCount": { "type": "integer" },
+
+      "vector": {
+        "type": "dense_vector",
+        "dims": 1024,
+        "index": true,
+        "similarity": "cosine"
+      }
+    }
+  }
+}

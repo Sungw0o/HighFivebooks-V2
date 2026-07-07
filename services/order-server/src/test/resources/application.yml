@@ -1,0 +1,12 @@
+spring:
+  application:
+    name: TEAM5-ORDER-SERVER
+  cloud:
+    config:
+      enabled: false
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false

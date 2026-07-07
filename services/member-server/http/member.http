@@ -1,0 +1,222 @@
+
+@host = http://localhost:8000
+
+POST {{host}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "loginId": "a",
+  "password": "a",
+  "name": "김철수",
+  "phone": "010-1234-5678",
+  "email": "test@nhn.com",
+  "birthDate": "1999-01-01",
+  "gender": "FEMALE"
+}
+
+### 관리자 가입
+POST {{host}}/api/auth/signup
+Content-Type: application/json
+
+{
+  "loginId": "a12",
+  "password": "a1",
+  "name": "김철수",
+  "phone": "011-2294-5678",
+  "email": "tes212t@nhn.com",
+  "birthDate": "1999-01-01",
+  "gender": "FEMALE",
+  "role": "ADMIN"
+}
+
+### 회원 권한 변경 (USER -> ADMIN)
+# memberId가 1번인 사람을 ADMIN으로 만듦
+PUT http://localhost:9001/api/members/1/role?role=ADMIN
+
+### 로그인
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{
+  "loginId": "admin",
+  "password": "admin"
+}
+
+> {%
+    // 응답에서 accessToken을 꺼내서 'access_token'이라는 이름으로 저장합니다.
+    client.global.set("access-token", response.body.accessToken);
+    client.global.set("refresh-token", response.body.refreshToken);
+    // 잘 저장됐는지 로그로 확인
+    client.log("저장된 토큰: " + client.global.get("access-token"));
+%}
+
+### 회원 정보 수정 (Member Server 직접 호출 - 수정됨)
+PUT http://{{host}}/api/members/me
+Content-Type: application/json
+Authorization: Bearer {{access-token}}
+
+{
+  "name": "변경할이름",
+  "phone": "010-7777-8888",
+  "birthday": "2000-01-01",
+  "gender": "MALE"
+}
+
+
+### 멤버 정보 조회 테스트
+POST {{host}}/api/members/list
+Content-Type: application/json
+Authorization: Bearer {{access-token}}
+
+[
+  1,
+  2,
+  3
+]
+
+###  로그아웃
+POST {{host}}/api/auth/logout
+Authorization: Bearer {{access-token}}
+Content-Type: application/json
+
+> {%
+    client.test("로그아웃 성공 확인", function() {
+        client.assert(response.status === 200, "응답 코드가 200 OK가 아닙니다.");
+    });
+%}
+### 토큰 재발급
+POST {{host}}/api/auth/reissue
+Content-Type: application/json
+X-Refresh-Token: {{refresh-token}}
+
+> {%
+
+    client.global.set("access-token", response.body.accessToken);
+    client.log("재발급된 토큰: " + client.global.get("access-token"));
+%}
+
+
+
+###회원 조회
+GET {{host}}/api/members/me
+Authorization: Bearer {{access-token}}
+Content-Type: application/json
+
+###회원 업데이트
+PATCH {{host}}/api/members/me
+Authorization: Bearer {{access-token}}
+Content-Type: application/json
+
+{
+  "email": "1211121212212@naver.com",
+  "phone": "010-2929-2282",
+  "gender": "FEMALE"
+
+}
+### 2-1. 첫 번째 주소 추가 (자동으로 기본 배송지 설정됨)
+# @name createAddress1..
+POST {{host}}/api/address
+Content-Type: application/json
+Authorization: Bearer {{access-token}}
+
+{
+  "alias": "우리집",
+  "roadAddress": "경기도 성남시 분당구 판교역로 1",
+  "detailAddress": "101동 101호"
+}
+
+> {%
+    // 응답에서 addressId 저장 (DTO에 ID 필드 추가 필요!)
+    // 만약 DTO에 ID가 없다면 이 부분에서 에러가 날 수 있습니다.
+    client.global.set("addressId1", response.body.addressId);
+%}
+
+### 2-2. 두 번째 주소 추가 (회사)
+# @name createAddress2
+POST {{host}}/api/address
+Content-Type: application/json
+Authorization: Bearer {{access-token}}
+
+{
+  "alias": "회사",
+  "roadAddress": "경기도 성남시 분당구 대왕판교로 645",
+  "detailAddress": "NHN 플레이뮤지엄"
+}
+
+> {%
+    client.global.set("addressId2", response.body.addressId);
+%}
+
+### 2-3. 주소 목록 조회
+GET {{host}}/api/address
+Authorization: Bearer {{access-token}}
+
+### 2-4. 현재 기본 배송지 조회 (예상: 우리집)
+GET {{host}}/api/address/default
+Authorization: Bearer {{access-token}}
+
+### 2-5. 기본 배송지 변경 (우리집 -> 회사)
+POST {{host}}/api/address/{{addressId2}}/default
+Authorization: Bearer {{access-token}}
+
+### 2-6. 특정 주소 정보 수정
+PATCH {{host}}/api/address/{{addressId1}}
+Content-Type: application/json
+Authorization: Bearer {{access-token}}
+
+{
+  "alias": "이사간 우리집",
+  "roadAddress": "서울시 송파구 올림픽로 300",
+  "detailAddress": "롯데타워 100층"
+}
+
+### 2-7. 주소 삭제 (기본 배송지 삭제 시도 -> Member의 defaultId가 null이 되는지 확인)
+DELETE {{host}}/api/address/{{addressId1}}
+Authorization: Bearer {{access-token}}
+
+### 회원 탈퇴
+DELETE {{host}}/api/members/me/withdraw
+Authorization: Bearer {{access-token}}
+
+### 1. 인증번호 전송 요청 (본인 이메일로 수정해서 실행하세요!)
+POST http://localhost:9001/api/auth/email/send?email=eseuyun@gmail.com
+
+### 2. 인증번호 검증 요청 (메일로 온 번호 6자리를 code에 넣고 실행하세요!)
+POST http://localhost:9001/api/auth/email/verify
+Content-Type: application/json
+
+{
+  "email": "eseuyun@gmail.com",
+  "code": "016068"
+}
+
+
+###
+
+
+@memberServer = http://localhost:9001
+
+### ==========================================
+# [Step 1] 등급 산정 스케줄러 강제 실행
+# ==========================================
+### 스케줄러 실행 (이걸 먼저 눌러주세요!)
+GET {{memberServer}}/test/grade
+
+# ==========================================
+# [Step 2] 결과 검증 (윤봉길 -> PLATINUM ?)
+# ==========================================
+
+### 1. [검증] User 11 (윤봉길) 조회 -> "PLATINUM" 이어야 성공!
+GET {{memberServer}}/api/members/me
+Content-Type: application/json
+X-User-ID: 11
+
+### 2. [비교] User 1 (홍길동) 조회 -> "GENERAL" 이어야 정상
+GET {{memberServer}}/api/members/me
+Content-Type: application/json
+X-User-ID: 1
+
+
+### 3. 등급 산정 강제 실행 (직접 호출)
+POST http://localhost:9001/test/grade-job
+Content-Type: application/json

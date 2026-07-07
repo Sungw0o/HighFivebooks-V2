@@ -1,0 +1,71 @@
+spring:
+  config:
+    activate:
+      on-profile: dormant-test  # 이 설정은 'test' 프로필일 때만 동작함
+
+  # 1. DB: H2 인메모리 (테스트 속도 향상, 데이터 격리)
+  datasource:
+    url: jdbc:h2:mem:testdb;MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop # 테스트 시작 시 테이블 생성, 종료 시 삭제
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  sql:
+    init:
+      mode: never
+
+  # 2. Redis: 가짜 설정 (localhost) - 연결 안 돼도 테스트는 돌아감
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ""
+      database: 0
+
+  # 3. Mail: 가짜 설정 (실제 발송 X)
+  mail:
+    host: localhost
+    port: 1025
+    username: test
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          connectiontimeout: 5000
+
+# 4. 외부 서비스(MSA) 끄기
+eureka:
+  client:
+    enabled: false
+app:
+  rabbitmq:
+    enabled: false
+management:
+  health:
+    rabbit:
+      enabled: false
+
+# 5. JWT: 가짜 키 (길이 32자 이상 필수)
+jwt:
+  secret: "test_key_must_be_long_enough_for_hmac_sha_256_algorithm"
+  expiration_time: 3600000
+  refresh_expiration_time: 86400000
+
+# 6. Payco: 가짜 설정 (빈 생성 에러 방지)
+payco:
+  client-id: "dummy-client-id"
+  client-secret: "dummy-client-secret"
+  redirect-uri: "http://localhost:8080"

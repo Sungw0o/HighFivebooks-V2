@@ -1,0 +1,26 @@
+### 책 추가 POST 요청
+POST localhost:9002/api/cart/items
+Content-Type: application/json
+
+{
+  "bookId": 3,
+  "quantity": 1
+}
+
+### 책 리스트 조회
+GET localhost:9002/api/cart
+
+### 책 전부 삭제
+DELETE localhost:9002/api/cart/items
+
+### 책 단건 삭제
+DELETE localhost:9002/api/cart/items/5
+
+### 책 수량 증가/감소
+PUT localhost:9002/api/cart/items
+Content-Type: application/json
+
+{
+  "bookId": 5,
+  "quantity": 4
+}

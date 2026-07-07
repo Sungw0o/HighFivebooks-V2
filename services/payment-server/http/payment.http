@@ -1,0 +1,58 @@
+### 1. 결제 승인 테스트 (멤버 서버 통신으로 포인트 차감)
+## paymentKey는 테스트 결제 후 주소창 파라미터 넣기
+POST http://localhost:9004/api/payments/confirm
+Content-Type: application/json
+
+{
+  "paymentKey": "tviva20251201171422CX1v9",
+  "orderId": 1,
+  "amount": 50000
+}
+
+
+### 2. 결제 취소 요청
+# 위에서 승인 성공(DONE)한 paymentKey를 여기에 그대로 복사
+# 기대 결과:
+#   1. 응답 status: "CANCELED"
+#   2. Toss 개발자 센터 - 취소 알림
+#   3. DB payment 테이블: status = 'CANCELED'
+#   4. DB point_history 테이블: REVERT_ORDER (+1000) 이력 생성
+POST http://localhost:9004/api/payments/cancel
+Content-Type: application/json
+
+{
+  "paymentKey": "tviva20251201171422CX1v9",
+  "cancelReason": "고객 단순 변심 (테스트)",
+  "refundPointAmount": 1000,
+  "orderId": 200,
+  "memberId": 1
+}
+
+
+### 1. [사용자] 결제 페이지용 조회 (활성 상태인 것만)
+# 기대 결과: 200 OK / "TOSS", "POINT" 등 활성화된 것만 나와야 함
+GET http://localhost:9004/api/payments/methods
+
+### 2. [관리자] 전체 결제 수단 조회
+# 기대 결과: 200 OK / 비활성화(isActive=false)된 것도 다 나와야 함
+GET http://localhost:9004/api/payments/methods/admin
+
+### 3. [관리자] 결제 수단 활성화
+# 상황: '포인트 결제'(ID: 2)를 잠시 끈다.
+# 기대 결과: 200 OK
+PUT http://localhost:9004/api/payments/methods/admin/2/status
+Content-Type: application/json
+
+{
+  "active": true
+}
+
+### 4. [관리자] 결제 수단 활성화
+# 상황: '포인트 결제'(ID: 2)를 잠시 끈다.
+# 기대 결과: 200 OK
+PUT http://localhost:9004/api/payments/methods/admin/2/status
+Content-Type: application/json
+
+{
+  "active": false
+}
