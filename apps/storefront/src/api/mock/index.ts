@@ -7,6 +7,7 @@ import type {
   CartDetailResponse,
   CartListResponse,
   CommonPageResponse,
+  CouponResponseDto,
   MemberCouponResponseDto,
   MemberResponse,
   OrderResponse,
@@ -111,6 +112,54 @@ const MOCK_MY_COUPONS: MemberCouponResponseDto[] = [
     discountType: 'PERCENT',
     condition: '10,000원 이상 구매 시 사용 가능',
     daysRemaining: 25,
+  },
+]
+
+const MOCK_ISSUABLE_COUPONS: CouponResponseDto[] = [
+  {
+    id: 101,
+    couponPolicyId: 1,
+    couponName: '여름 독서 3,000원 할인',
+    description: '20,000원 이상 주문 시 사용 가능한 정액 할인 쿠폰',
+    issueCount: 500,
+    issueStartAt: '2026-06-01T00:00:00',
+    issueEndAt: '2026-08-31T23:59:59',
+    validPeriodDate: 30,
+    validEndAt: null,
+    remainingCount: 312,
+    status: 'ACTIVE',
+    couponType: 'AMOUNT',
+    policyStatus: 'ACTIVE',
+  },
+  {
+    id: 102,
+    couponPolicyId: 2,
+    couponName: '베스트셀러 15% 할인',
+    description: '베스트셀러 카테고리 도서 구매 시 적용',
+    issueCount: 200,
+    issueStartAt: '2026-07-01T00:00:00',
+    issueEndAt: '2026-07-31T23:59:59',
+    validPeriodDate: 14,
+    validEndAt: null,
+    remainingCount: 88,
+    status: 'ACTIVE',
+    couponType: 'PERCENT',
+    policyStatus: 'ACTIVE',
+  },
+  {
+    id: 103,
+    couponPolicyId: 3,
+    couponName: '첫 구매 5,000원 할인',
+    description: '가입 후 첫 주문에 사용 가능한 웰컴 쿠폰',
+    issueCount: 1000,
+    issueStartAt: '2026-01-01T00:00:00',
+    issueEndAt: '2026-12-31T23:59:59',
+    validPeriodDate: 60,
+    validEndAt: null,
+    remainingCount: 543,
+    status: 'ACTIVE',
+    couponType: 'AMOUNT',
+    policyStatus: 'ACTIVE',
   },
 ]
 
@@ -234,6 +283,7 @@ export const mockApi: StorefrontApi = {
     updateAddress: (addressId, request) =>
       delay({ ...MOCK_ADDRESS, addressId, ...request, isDefault: request.defaultAddress }),
     deleteAddress: () => delay(undefined),
+    setDefaultAddress: (addressId) => delay({ ...MOCK_ADDRESS, addressId, isDefault: true }),
     getPointBalance: () => delay({ memberId: 1, currentPoint: 3200, totalEarnedPoint: 158000 }),
     getPointHistory: (page, size) =>
       delay(
@@ -373,8 +423,28 @@ export const mockApi: StorefrontApi = {
 
   coupons: {
     getBookCoupons: () => delay([]),
-    getIssuableCoupons: (page, size) => delay(toPage([], page, size)),
-    issueCoupon: () => delay(undefined),
+    getIssuableCoupons: (page, size) => delay(toPage(MOCK_ISSUABLE_COUPONS, page, size)),
+    issueCoupon: (couponId) => {
+      const found = MOCK_ISSUABLE_COUPONS.find((c) => c.id === couponId)
+      if (!found) return Promise.reject(new Error(`Coupon not found: ${couponId}`))
+      if (found.remainingCount !== null) found.remainingCount = Math.max(0, found.remainingCount - 1)
+      MOCK_MY_COUPONS.push({
+        id: 200 + MOCK_MY_COUPONS.length,
+        userId: 1,
+        couponId: found.id,
+        couponName: found.couponName,
+        status: 'ACTIVE',
+        issuedAt: new Date().toISOString(),
+        usedAt: null,
+        expiredAt: found.validEndAt ?? new Date(Date.now() + (found.validPeriodDate ?? 30) * 86400000).toISOString(),
+        orderId: null,
+        discountValue: found.couponType === 'PERCENT' ? 15 : 3000,
+        discountType: found.couponType === 'PERCENT' ? 'PERCENT' : 'AMOUNT',
+        condition: found.description ?? '',
+        daysRemaining: found.validPeriodDate ?? 30,
+      })
+      return delay(undefined)
+    },
     getMyCoupons: (page, size) => delay(toPage(MOCK_MY_COUPONS, page, size)),
     getUsableCoupons: () => delay(MOCK_MY_COUPONS),
     calculate: (_couponId, totalOrderPrice) => {

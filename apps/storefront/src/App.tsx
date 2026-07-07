@@ -16,6 +16,8 @@ const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default:
 const SignupPage = lazy(() => import('./pages/SignupPage').then((m) => ({ default: m.SignupPage })))
 const AccountFindPage = lazy(() => import('./pages/AccountFindPage').then((m) => ({ default: m.AccountFindPage })))
 const GuestOrderPage = lazy(() => import('./pages/GuestOrderPage').then((m) => ({ default: m.GuestOrderPage })))
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })))
+const MyCouponsPage = lazy(() => import('./pages/MyCouponsPage').then((m) => ({ default: m.MyCouponsPage })))
 const ReviewNewPage = lazy(() => import('./pages/ReviewNewPage').then((m) => ({ default: m.ReviewNewPage })))
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout').then((m) => ({ default: m.AdminLayout })))
 const AdminDashboardPage = lazy(() =>
@@ -55,6 +57,8 @@ export default function App() {
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/order/complete" element={<OrderCompletePage />} />
           <Route path="/my" element={<MyPage />} />
+          <Route path="/my/profile" element={<ProfilePage />} />
+          <Route path="/my/coupons" element={<MyCouponsPage />} />
           <Route path="/review/new" element={<ReviewNewPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />

@@ -267,7 +267,7 @@ export function MyPage() {
     <div className="min-h-screen bg-ink">
       <SlimHeader />
 
-      <main className="px-10 pb-24">
+      <main className="px-4 pb-24 sm:px-10">
         <FadeIn>
           <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2 pt-10">
             <h1
@@ -279,6 +279,12 @@ export function MyPage() {
             {me && (
               <p className="text-sm font-light text-body/55">
                 {me.name} · {me.gradeName} · {me.email}
+                <Link to="/my/profile" className="ml-4 text-body/80 underline-offset-4 transition-opacity hover:opacity-70">
+                  내 정보 관리 →
+                </Link>
+                <Link to="/my/coupons" className="ml-4 text-body/80 underline-offset-4 transition-opacity hover:opacity-70">
+                  내 쿠폰함 →
+                </Link>
               </p>
             )}
           </div>
