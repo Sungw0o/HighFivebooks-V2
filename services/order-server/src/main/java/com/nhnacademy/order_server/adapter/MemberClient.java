@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "TEAM5-MEMBER-SERVER")
+@FeignClient(name = "TEAM5-MEMBER-SERVER", url = "${member.service.url:http://localhost:9001}")
 public interface MemberClient {
 
     // [회원 등급 조회]

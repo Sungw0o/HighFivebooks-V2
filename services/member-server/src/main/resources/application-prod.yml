@@ -1,0 +1,66 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  cloud:
+    config:
+      enabled: false
+    discovery:
+      enabled: false
+    openfeign:
+      client:
+        config:
+          TEAM5-BOOK-SERVER:
+            url: ${BOOK_SERVICE_URL:http://book-server:8080}
+          TEAM5-ORDER-SERVER:
+            url: ${ORDER_SERVICE_URL:http://order-server:8080}
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT:3306}/${MEMBER_DB_NAME}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${MEMBER_DB_USERNAME}
+    password: ${MEMBER_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Seoul
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE:0}
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration_time: ${JWT_ACCESS_EXPIRATION_MS:3600000}
+  refresh_expiration_time: ${JWT_REFRESH_EXPIRATION_MS:604800000}
+
+encrypt:
+  secret-key: ${ENCRYPT_SECRET_KEY}
+
+payco:
+  client-id: ${PAYCO_CLIENT_ID:}
+  client-secret: ${PAYCO_CLIENT_SECRET:}
+
+eureka:
+  client:
+    enabled: false

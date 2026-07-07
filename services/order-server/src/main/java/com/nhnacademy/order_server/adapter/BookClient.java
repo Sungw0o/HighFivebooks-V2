@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@FeignClient(name = "TEAM5-BOOK-SERVER")
+@FeignClient(name = "TEAM5-BOOK-SERVER", url = "${book.service.url:http://localhost:9002}")
 public interface BookClient {
 
     @PostMapping("/api/books/bulk")

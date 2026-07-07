@@ -4,7 +4,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 
-@FeignClient(name = "TEAM5-MEMBER-SERVER", contextId = "cartClient")
+@FeignClient(name = "TEAM5-MEMBER-SERVER", contextId = "cartClient", url = "${member.service.url:http://localhost:9001}")
 public interface CartClient {
 
     @DeleteMapping("/api/cart/items")

@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
-@FeignClient(name = "TEAM5-PAYMENT-SERVER")
+@FeignClient(name = "TEAM5-PAYMENT-SERVER", url = "${payment.service.url:http://localhost:9005}")
 public interface PaymentClient {
 
     @PostMapping("/api/payments/{paymentKey}/cancel")

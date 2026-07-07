@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #0c0c0c;
+  --color-body: #d7e2ea;
+  --color-accent: #be4c00;
+  --font-display: "Kanit", "Noto Sans KR", sans-serif;
+  --font-sans: "Noto Sans KR", "Kanit", sans-serif;
+}
+
+html,
+body,
+#root {
+  background-color: #0c0c0c;
+  min-height: 100%;
+}
+
+body {
+  color: var(--color-body);
+  font-family: var(--font-sans);
+  font-weight: 300;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 헤딩 그라디언트 텍스트 */
+.text-gradient-heading {
+  background: linear-gradient(180deg, #646973 0%, #bbccd7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* CTA pill 버튼 */
+.btn-cta {
+  display: inline-block;
+  background: linear-gradient(123deg, #18011f 7%, #b600a8 37%, #7621b0 72%, #be4c00 100%);
+  box-shadow:
+    0 4px 4px rgba(181, 1, 167, 0.25),
+    4px 4px 12px #7721b1 inset;
+  outline: 2px solid #fff;
+  outline-offset: -3px;
+  border-radius: 999px;
+  padding: 16px 46px;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+  transition: filter 200ms;
+}
+.btn-cta:hover {
+  filter: brightness(1.15);
+}
+
+/* 고스트 pill 버튼 */
+.btn-ghost {
+  display: inline-block;
+  border: 2px solid #d7e2ea;
+  border-radius: 999px;
+  padding: 14px 40px;
+  color: var(--color-body);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+  transition: background-color 200ms;
+}
+.btn-ghost:hover {
+  background-color: rgba(215, 226, 234, 0.1);
+}
+
+/* 책 표지 공통: 왼쪽 inset 하이라이트(책등) */
+.book-cover {
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 5px 0 8px -2px rgba(255, 255, 255, 0.35);
+}
+.book-cover::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
+  pointer-events: none;
+}
+
+/* 히어로 오브젝트 부유 애니메이션 */
+@keyframes floaty {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-14px);
+  }
+}
+.animate-floaty {
+  animation: floaty 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-floaty {
+    animation: none;
+  }
+}

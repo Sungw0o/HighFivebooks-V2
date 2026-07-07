@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 
-@FeignClient(name = "TEAM5-COUPON-SERVER", path = "/api/coupons")
+@FeignClient(name = "TEAM5-COUPON-SERVER", url = "${coupon.service.url:http://localhost:9004}", path = "/api/coupons")
 public interface CouponClient {
 
     // 1. 쿠폰 할인 금액 계산

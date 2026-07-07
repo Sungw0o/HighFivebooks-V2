@@ -18,13 +18,13 @@ story is:
 - replace Eureka with Kubernetes Service DNS
 - replace Config Server with ConfigMap and Secret
 - replace Gateway with Ingress
-- replace the Thymeleaf frontend with a small React operations console
+- replace the Thymeleaf frontend with a React storefront
 
 ## Repository Layout
 
 ```text
 apps/
-  console/              React/Vite demo console
+  storefront/           React/Vite user storefront
 
 services/
   order-server/         Main refactoring target
@@ -42,7 +42,7 @@ docs/                   Planning and implementation notes
 The original Spring Cloud operational services are intentionally not carried
 forward as first-class V2 services:
 
-- `front_server`: replaced by `apps/console`
+- `front_server`: replaced by `apps/storefront`
 - `eureka_server`: replaced by Kubernetes Service DNS
 - `config_server`: replaced by ConfigMap and Secret
 - `gateway`: replaced by Ingress
@@ -67,6 +67,41 @@ Expected result:
 98 tests, 0 failures, 0 errors, 0 skipped
 ```
 
+## Local Infrastructure
+
+Local development uses one MySQL container with separate databases per service,
+plus shared RabbitMQ and Redis containers.
+
+```powershell
+copy .env.example .env
+docker compose up -d mysql rabbitmq redis
+```
+
+Default local endpoints:
+
+```text
+MySQL:     localhost:3307
+RabbitMQ:  localhost:5672
+Rabbit UI: http://localhost:15672
+Redis:     localhost:6380
+```
+
+The MySQL init script creates these service databases:
+
+```text
+highfive_order
+highfive_book
+highfive_member
+highfive_coupon
+highfive_payment
+```
+
+The default credentials in `.env.example` are local-only placeholders.
+Kubernetes must use generated Secret values instead.
+
+Runtime profile details are tracked in
+[`docs/runtime-config.md`](docs/runtime-config.md).
+
 ## Next Priorities
 
 1. Map the order flow and every Feign boundary.
@@ -76,5 +111,4 @@ Expected result:
 5. Add scheduler locking for multi-instance order deployments.
 6. Build the local integration environment.
 7. Move the runtime to Kubernetes manifests.
-8. Connect the React console to real API scenarios.
-
+8. Connect the React storefront to real API scenarios.

@@ -1,11 +1,5 @@
 spring:
   application:
     name: TEAM5-MEMBER-SERVER
-  config:
-    name: TEAM5-MEMBER-SERVER
-    import: "optional:configserver:"
-
-eureka:
-  client:
-    service-url:
-      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
+  profiles:
+    default: local

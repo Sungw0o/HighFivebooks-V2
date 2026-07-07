@@ -1,0 +1,60 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+book:
+  service:
+    url: ${BOOK_SERVICE_URL:http://book-server:8080}
+member:
+  service:
+    url: ${MEMBER_SERVICE_URL:http://member-server:8080}
+coupon:
+  service:
+    url: ${COUPON_SERVICE_URL:http://coupon-server:8080}
+payment:
+  service:
+    url: ${PAYMENT_SERVICE_URL:http://payment-server:8080}
+
+spring:
+  cloud:
+    config:
+      enabled: false
+    discovery:
+      enabled: false
+    openfeign:
+      client:
+        config:
+          TEAM5-BOOK-SERVER:
+            url: ${BOOK_SERVICE_URL:http://book-server:8080}
+          TEAM5-MEMBER-SERVER:
+            url: ${MEMBER_SERVICE_URL:http://member-server:8080}
+          TEAM5-COUPON-SERVER:
+            url: ${COUPON_SERVICE_URL:http://coupon-server:8080}
+          TEAM5-PAYMENT-SERVER:
+            url: ${PAYMENT_SERVICE_URL:http://payment-server:8080}
+  datasource:
+    url: jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT:3306}/${ORDER_DB_NAME}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${ORDER_DB_USERNAME}
+    password: ${ORDER_DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Seoul
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      database: ${REDIS_DATABASE:0}
+
+eureka:
+  client:
+    enabled: false

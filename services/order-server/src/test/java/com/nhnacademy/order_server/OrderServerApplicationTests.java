@@ -15,7 +15,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
         "coupon.service.url=http://localhost:8082",
         "member.service.url=http://localhost:8083",
         "cart.service.url=http://localhost:8084",
-        "payment.service.url=http://localhost:8085"
+        "payment.service.url=http://localhost:8085",
+        "spring.rabbitmq.listener.simple.auto-startup=false"
 })
 class OrderServerApplicationTests {
 

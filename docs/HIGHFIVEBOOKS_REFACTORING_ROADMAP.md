@@ -18,10 +18,10 @@ GitHub 확인 결과 `nhnacademy-be12-high-five` 조직에 원본 레포들이 �
   - `C:\Users\성우\Desktop\Highfivebooks\member_server`
   - `C:\Users\성우\Desktop\Highfivebooks\payment_server`
   - `C:\Users\성우\Desktop\Highfivebooks\front_server_original`
-  - `C:\Users\성우\Desktop\Highfivebooks\highfivebooks-console`
+  - `C:\Users\성우\Desktop\Highfivebooks\highfivebooks-console` (초기 실험 산출물, V2 기준에서는 storefront로 대체)
   - `C:\Users\성우\Desktop\Highfivebooks\k8s-manifests`
 
-결론: MSA는 유지한다. 모놀리스로 합치지 않고 Kubernetes-native 운영 구조로 전환한다. 본인 담당 도메인인 `order_server`를 깊게 리팩토링하고, `coupon_server`는 메시징/정합성 패턴을 배우고 order 연동 안정성을 보강하는 학습 리팩토링 대상으로 둔다. 기존 Thymeleaf 프론트는 보존만 하고, 시연용 프론트는 React/Vite 기반 `highfivebooks-console`로 새로 만든다.
+결론: MSA는 유지한다. 모놀리스로 합치지 않고 Kubernetes-native 구조로 전환한다. 본인 담당 도메인인 `order_server`를 깊게 리팩토링하고, `coupon_server`는 메시징/정합성 패턴을 배우고 order 연동 안정성을 보강하는 학습 리팩토링 대상으로 둔다. 기존 Thymeleaf `front_server`는 직접 고치지 않고, React/Vite 기반 `apps/storefront`로 실제 사용자 쇼핑몰 프론트를 새로 구현한다.
 
 ## 1. 리팩토링 범위
 
@@ -32,7 +32,7 @@ GitHub 확인 결과 `nhnacademy-be12-high-five` 조직에 원본 레포들이 �
 3. 결제 성공 RabbitMQ 소비 흐름에 Retry/DLQ 정책 추가
 4. 주문 자동 취소/자동 구매확정 스케줄러 중복 실행 방지
 5. Feign timeout 및 장애 격리 정책 추가
-6. React 데모 콘솔에서 주문/결제/쿠폰/장애 실험 플로우 시연
+6. React storefront에서 도서 탐색, 장바구니, 주문, 결제, 마이페이지 플로우 구현
 7. README/포트폴리오 문서화
 
 ### 하면 좋다
@@ -79,19 +79,20 @@ GitHub 확인 결과 `nhnacademy-be12-high-five` 조직에 원본 레포들이 �
 
 따라서 첫 작업은 기능 리팩토링이 아니라 테스트 실행 안정화다.
 
-### React 콘솔 상태
+### React storefront 방향
 
-`highfivebooks-console`은 React/Vite/TypeScript로 생성했다. 최신 Vite 템플릿은 Node 20.19 이상을 요구했지만 현재 로컬 Node가 20.17.0이므로 Vite 5 계열로 낮췄다.
+초기에는 `highfivebooks-console`을 React/Vite/TypeScript로 생성했지만, 최종 방향은 운영 콘솔이 아니라 기존 Thymeleaf 프론트를 대체하는 사용자용 `apps/storefront`다.
 
 현재 상태:
 
-- `npm install` 완료
-- `npm run build` 통과
-- 화면 성격: 전체 쇼핑몰 UI가 아니라 주문/결제/쿠폰/K8s 전환을 보여주는 운영 데모 콘솔
+- Claude가 `docs/STOREFRONT_API_CONTRACT.md`에 화면별 API 계약을 정리하기 시작했다.
+- storefront 구현 전 실제 backend controller/dto 기준으로 계약을 먼저 맞춘다.
+- mock adapter는 실제 API 계약과 동일한 타입으로만 만든다.
 
 주의:
 
-- `npm audit` 기준 moderate 1개, high 1개 취약점 경고가 있다. 초기 스캐폴드 보안 정리는 별도 커밋으로 분리한다.
+- 임의 endpoint를 확정하지 않는다.
+- 기존 `front_server`는 참고만 하고 직접 리팩토링하지 않는다.
 
 ## 3. 브랜치/PR 전략
 
@@ -138,8 +139,8 @@ GitHub 확인 결과 `nhnacademy-be12-high-five` 조직에 원본 레포들이 �
 - `order_server`를 기준 작업 레포로 확정
 - `coupon_server`는 비교 분석용으로 유지
 - `book_server`, `member_server`, `payment_server`는 런타임 의존성으로 클론 완료
-- `front_server_original`은 Thymeleaf 원본 참고용으로 보존
-- `highfivebooks-console`은 React 데모 콘솔로 사용
+- `front_server_original`은 Thymeleaf 원본 참고용으로만 보존
+- React 프론트는 `apps/storefront`로 구현
 - Kubernetes 설정은 각 서비스 레포 안에 흩뿌리지 않고 `k8s-manifests`에 모은다.
 - 원본 팀 프로젝트와 개인 리팩토링 버전의 관계를 README에 명확히 적는다.
 
@@ -171,6 +172,29 @@ GitHub 확인 결과 `nhnacademy-be12-high-five` 조직에 원본 레포들이 �
 
 - `.\mvnw.cmd test` 통과: 98 tests, 0 failures, 0 errors, 0 skipped
 - 실패가 남는 경우 기능 실패와 환경 실패가 분리되어 문서화
+
+### Phase 1.5. 주문 흐름 지도와 테스트 분류
+
+목표: order-server가 어떤 외부 도메인과 어떤 계약으로 통신하는지 고정한다.
+
+작업:
+
+- [x] `BookClient`, `MemberClient`, `CouponClient`, `PaymentClient`, `CartClient` 호출 목록 정리
+- [x] 주문 생성 / 결제 성공 / 주문 취소 / 자동 스케줄러 흐름별 외부 통신 지도 작성
+- [x] 현재 테스트를 Unit / Slice / Context / 미보유 Boundary test로 분류
+- [x] storefront에서 우선 참고할 order API 후보 정리
+
+산출물:
+
+- `docs/order-flow-boundary-map.md`
+
+확인된 핵심 리스크:
+
+- `OrderServiceImpl` 클래스 레벨 `@Transactional` 때문에 외부 Feign I/O가 트랜잭션 안에서 실행될 가능성이 있다.
+- `OrderCreateService.createOrderInTransaction` 내부에도 포인트 예약과 장바구니 삭제 외부 호출이 있다.
+- `OrderCancelService.cancelOrderTransactional`은 `REQUIRES_NEW` 트랜잭션 안에서 payment/member/coupon/book 외부 호출을 수행한다.
+- Feign 실제 HTTP 계약을 검증하는 boundary test는 아직 없다.
+- RabbitMQ `payment-success-queue`에 Retry/DLQ 정책과 테스트가 아직 없다.
 
 ### Phase 2. 트랜잭션 경계 리팩토링
 
@@ -279,25 +303,29 @@ GitHub 확인 결과 `nhnacademy-be12-high-five` 조직에 원본 레포들이 �
 - Rollout 캡처 또는 GIF
 - README로 재현 가능
 
-### Phase 8. React 데모 콘솔
+### Phase 8. React storefront
 
-목표: Thymeleaf 프론트를 전체 재구현하지 않고, 백엔드/인프라 개선을 시연하는 콘솔을 만든다.
+목표: 기존 Thymeleaf `front_server`를 직접 고치지 않고, React/Vite 기반 사용자 쇼핑몰 프론트로 대체한다.
 
 작업:
 
-- 서비스 상태 카드
-- 주문 생성 요청
-- 결제 성공 이벤트 확인
-- poison message 재현 버튼
-- 주문 취소/보상 확인
-- 쿠폰 사용/취소 상태 확인
-- K8s 서비스/Ingress endpoint 표시
+- 홈/도서 목록/검색/카테고리
+- 도서 상세/리뷰
+- 장바구니
+- 주문서
+- 배송지
+- 쿠폰/포인트 적용
+- 결제 성공/실패 처리
+- 주문 완료
+- 마이페이지, 주문 내역, 주문 상세
+- 주문 취소/반품 신청
 
 완료 조건:
 
 - React 앱이 로컬에서 실행됨
-- K8s Ingress 또는 로컬 프록시를 통해 API 호출 가능
-- 면접에서 "기존 Thymeleaf를 React로 바꾼 이유"를 데모 목적과 유지보수 분리 관점으로 설명 가능
+- 백엔드 실제 API 계약과 맞는 adapter/type이 존재함
+- mock adapter와 real adapter가 동일 타입을 사용함
+- 면접에서 "기존 Thymeleaf를 React로 대체한 이유"를 사용자 경험/유지보수/프론트 분리 관점으로 설명 가능
 
 ## 5. 포트폴리오 스토리
 
