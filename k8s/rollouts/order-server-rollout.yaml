@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: order-server
+  namespace: highfivebooks
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: order-server
+  strategy:
+    canary:
+      steps:
+        - setWeight: 20
+        - pause:
+            duration: 60s
+        - setWeight: 50
+        - pause:
+            duration: 60s
+        - setWeight: 100
+  template:
+    metadata:
+      labels:
+        app: order-server
+    spec:
+      containers:
+        - name: order-server
+          image: ghcr.io/sungw0o/highfivebooks-v2/order-server:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: highfivebooks-config
+            - secretRef:
+                name: highfivebooks-secret
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+

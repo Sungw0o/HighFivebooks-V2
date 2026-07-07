@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-init
+data:
+  01-init-databases.sh: |
+    #!/bin/sh
+    set -eu
+
+    mysql -uroot -p"$MYSQL_ROOT_PASSWORD" <<SQL
+    CREATE DATABASE IF NOT EXISTS highfive_order CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE DATABASE IF NOT EXISTS highfive_book CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE DATABASE IF NOT EXISTS highfive_member CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE DATABASE IF NOT EXISTS highfive_coupon CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    CREATE DATABASE IF NOT EXISTS highfive_payment CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+    CREATE USER IF NOT EXISTS '$ORDER_DB_USERNAME'@'%' IDENTIFIED BY '$ORDER_DB_PASSWORD';
+    CREATE USER IF NOT EXISTS '$BOOK_DB_USERNAME'@'%' IDENTIFIED BY '$BOOK_DB_PASSWORD';
+    CREATE USER IF NOT EXISTS '$MEMBER_DB_USERNAME'@'%' IDENTIFIED BY '$MEMBER_DB_PASSWORD';
+    CREATE USER IF NOT EXISTS '$COUPON_DB_USERNAME'@'%' IDENTIFIED BY '$COUPON_DB_PASSWORD';
+    CREATE USER IF NOT EXISTS '$PAYMENT_DB_USERNAME'@'%' IDENTIFIED BY '$PAYMENT_DB_PASSWORD';
+
+    GRANT ALL PRIVILEGES ON highfive_order.* TO '$ORDER_DB_USERNAME'@'%';
+    GRANT ALL PRIVILEGES ON highfive_book.* TO '$BOOK_DB_USERNAME'@'%';
+    GRANT ALL PRIVILEGES ON highfive_member.* TO '$MEMBER_DB_USERNAME'@'%';
+    GRANT ALL PRIVILEGES ON highfive_coupon.* TO '$COUPON_DB_USERNAME'@'%';
+    GRANT ALL PRIVILEGES ON highfive_payment.* TO '$PAYMENT_DB_USERNAME'@'%';
+    FLUSH PRIVILEGES;
+    SQL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+spec:
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql
+  selector:
+    app: mysql
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+spec:
+  serviceName: mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.4
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: mysql
+              containerPort: 3306
+          envFrom:
+            - configMapRef:
+                name: highfivebooks-config
+            - secretRef:
+                name: highfivebooks-secret
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: highfivebooks-secret
+                  key: MYSQL_ROOT_PASSWORD
+          args:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+            - --default-time-zone=+09:00
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+            - name: mysql-init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --silent
+            initialDelaySeconds: 20
+            periodSeconds: 10
+      volumes:
+        - name: mysql-init
+          configMap:
+            name: mysql-init
+            defaultMode: 0755
+  volumeClaimTemplates:
+    - metadata:
+        name: mysql-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 2Gi
+

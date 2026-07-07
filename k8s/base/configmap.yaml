@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: highfivebooks-config
+data:
+  SPRING_PROFILES_ACTIVE: prod
+  TZ: Asia/Seoul
+
+  SERVER_PORT: "8080"
+
+  MYSQL_HOST: mysql
+  MYSQL_PORT: "3306"
+  ORDER_DB_NAME: highfive_order
+  BOOK_DB_NAME: highfive_book
+  MEMBER_DB_NAME: highfive_member
+  COUPON_DB_NAME: highfive_coupon
+  PAYMENT_DB_NAME: highfive_payment
+
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: "5672"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_DATABASE: "0"
+
+  BOOK_SERVICE_URL: http://book-server:8080
+  MEMBER_SERVICE_URL: http://member-server:8080
+  COUPON_SERVICE_URL: http://coupon-server:8080
+  PAYMENT_SERVICE_URL: http://payment-server:8080
+  ORDER_SERVICE_URL: http://order-server:8080
+
+  ELASTICSEARCH_HOST: elasticsearch
+  ELASTICSEARCH_PORT: "9200"
+  ELASTICSEARCH_USERNAME: elastic
+  MINIO_URL: http://minio:9000
+  MINIO_BOOK_BUCKET_NAME: book-images
+  MINIO_REVIEW_BUCKET_NAME: review-images
+  MINIO_DEFAULT_IMAGE_URL: http://minio:9000/book-images/default.jpg
+  RAG_REINDEX_ENABLED: "false"
+
+  MAIL_HOST: smtp.gmail.com
+  MAIL_PORT: "587"
+
+  FEIGN_CONNECT_TIMEOUT_MS: "1000"
+  FEIGN_READ_TIMEOUT_MS: "3000"
+  CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE: "20"
+  CIRCUIT_BREAKER_MINIMUM_CALLS: "5"
+  CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD: "50"
+  CIRCUIT_BREAKER_WAIT_DURATION: 10s
+  CIRCUIT_BREAKER_HALF_OPEN_CALLS: "3"
+
