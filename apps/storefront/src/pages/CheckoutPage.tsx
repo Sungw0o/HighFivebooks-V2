@@ -13,6 +13,7 @@ import { SiteFooter } from '../components/layout/SiteFooter'
 import { EmptyState, ErrorState } from '../components/states'
 import { FadeIn } from '../components/motion/FadeIn'
 import { formatPrice } from '../lib/format'
+import { openDaumPostcode } from '../lib/useDaumPostcode'
 
 /** 요청사항 옵션 — 백엔드 OrderCreateRequest에 필드 없음(추가 필요, 계약 문서 참조). 현재 UI 전용 */
 const DELIVERY_REQUESTS = ['요청사항 없음', '문 앞에 놓아주세요', '경비실에 맡겨주세요', '배송 전 연락주세요']
@@ -174,7 +175,7 @@ export function CheckoutPage() {
     <div className="min-h-screen bg-ink">
       <SlimHeader />
 
-      <main className="px-10 pb-24">
+      <main className="px-4 pb-24 sm:px-10">
         <FadeIn>
           <h1
             className="pt-10 font-display font-black uppercase leading-none text-gradient-heading"
@@ -212,12 +213,25 @@ export function CheckoutPage() {
                     value={receiverPhone}
                     onChange={(e) => setReceiverPhone(e.target.value)}
                   />
-                  <input
-                    className={`${inputClass} sm:col-span-2`}
-                    placeholder="주소"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                  />
+                  <div className="flex gap-2 sm:col-span-2">
+                    <input
+                      className={`${inputClass} flex-1`}
+                      placeholder="주소"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      className="shrink-0 cursor-pointer whitespace-nowrap rounded-full border border-[rgba(215,226,234,0.3)] px-4 py-1.5 text-xs text-body/70 transition-opacity hover:opacity-70"
+                      onClick={() => {
+                        void openDaumPostcode((result) => {
+                          setAddress(result.roadAddress)
+                        })
+                      }}
+                    >
+                      주소 검색
+                    </button>
+                  </div>
                   <input
                     className={`${inputClass} sm:col-span-2`}
                     placeholder="상세 주소"
