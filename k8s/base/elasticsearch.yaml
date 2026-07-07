@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
         - name: elasticsearch
-          image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+          image: ghcr.io/sungw0o/highfivebooks-v2/elasticsearch-nori:8.18.8
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -57,4 +57,3 @@ spec:
         resources:
           requests:
             storage: 1Gi
-

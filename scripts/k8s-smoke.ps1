@@ -84,6 +84,18 @@ if ($orderLogText -notmatch "Created new connection: rabbitConnectionFactory") {
 }
 Write-Host "order-server MySQL/RabbitMQ connection logs found" -ForegroundColor Green
 
+$plugins = & kubectl -n $Namespace exec statefulset/elasticsearch -- curl -sS localhost:9200/_cat/plugins
+if ($LASTEXITCODE -ne 0 -or (($plugins -join "`n") -notmatch "analysis-nori")) {
+    throw "Elasticsearch analysis-nori plugin is not installed"
+}
+Write-Host "elasticsearch analysis-nori plugin found" -ForegroundColor Green
+
+$analyzeResponse = & kubectl -n $Namespace exec statefulset/elasticsearch -- curl -sS -X POST localhost:9200/high-five/_analyze -H "Content-Type: application/json" -d '{"analyzer":"korean_html_analyzer","text":"자바 스프링 테스트"}'
+if ($LASTEXITCODE -ne 0 -or (($analyzeResponse -join "`n") -notmatch '"token":"java"') -or (($analyzeResponse -join "`n") -notmatch '"token":"spring"')) {
+    throw "Elasticsearch korean_html_analyzer did not return expected synonym tokens"
+}
+Write-Host "elasticsearch korean_html_analyzer returned expected synonym tokens" -ForegroundColor Green
+
 & kubectl -n $Namespace delete pod k8s-smoke-curl --ignore-not-found | Out-Null
 
 $curlScript = @'
