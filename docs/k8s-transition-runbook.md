@@ -103,6 +103,7 @@ kubectl -n highfivebooks exec deploy/order-server -- printenv SPRING_PROFILES_AC
 확인할 것:
 
 - `SPRING_PROFILES_ACTIVE=prod`
+- 로컬 전환 검증에서는 빈 MySQL 부팅을 위해 `SPRING_JPA_HIBERNATE_DDL_AUTO=update`를 ConfigMap으로 오버라이드
 - Feign URL이 `http://*-server:8080` Service DNS를 사용
 - RabbitMQ `payment-success-queue`가 DLQ arguments와 함께 생성
 - order-server replicas가 2여도 ShedLock으로 스케줄러 중복 실행 방지

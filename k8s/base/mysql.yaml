@@ -7,7 +7,9 @@ data:
     #!/bin/sh
     set -eu
 
-    mysql -uroot -p"$MYSQL_ROOT_PASSWORD" <<SQL
+    unset MYSQL_HOST MYSQL_TCP_PORT
+
+    mysql --protocol=socket -uroot -p"$MYSQL_ROOT_PASSWORD" <<SQL
     CREATE DATABASE IF NOT EXISTS highfive_order CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     CREATE DATABASE IF NOT EXISTS highfive_book CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
     CREATE DATABASE IF NOT EXISTS highfive_member CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -105,4 +107,3 @@ spec:
         resources:
           requests:
             storage: 2Gi
-
