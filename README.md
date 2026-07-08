@@ -75,6 +75,8 @@ V2는 기존 팀 프로젝트를 개인 포트폴리오 관점에서 다시 정�
 
 ## 배포 구조
 
+![HighFiveBooks V2 Architecture](docs/assets/highfivebooks-architecture.svg)
+
 ```mermaid
 flowchart TB
     User["사용자 브라우저"]
@@ -348,6 +350,7 @@ order-server는 replica 2개를 기준으로 두고, Redis ShedLock으로 스케
 | [k8s-transition-runbook.md](docs/k8s-transition-runbook.md) | K8s 전환 실행 절차 |
 | [k8s-smoke-evidence.md](docs/k8s-smoke-evidence.md) | K8s smoke check 기록 |
 | [runtime-config.md](docs/runtime-config.md) | local/prod 런타임 설정 |
+| [LOCAL_REPRODUCIBILITY.md](docs/LOCAL_REPRODUCIBILITY.md) | 다른 컴퓨터에서 로컬 통합 환경 재현 절차 |
 | [STOREFRONT_API_CONTRACT.md](docs/STOREFRONT_API_CONTRACT.md) | storefront API 계약 |
 
 ---
