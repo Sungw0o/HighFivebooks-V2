@@ -2,7 +2,6 @@ import { Suspense, lazy, useEffect } from 'react'
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { StubPage } from './pages/StubPage'
 
-// 라우트 단위 code-split
 const HomePage = lazy(() => import('./pages/HomePage').then((m) => ({ default: m.HomePage })))
 const BooksPage = lazy(() => import('./pages/BooksPage').then((m) => ({ default: m.BooksPage })))
 const BookDetailPage = lazy(() => import('./pages/BookDetailPage').then((m) => ({ default: m.BookDetailPage })))
@@ -10,6 +9,10 @@ const CartPage = lazy(() => import('./pages/CartPage').then((m) => ({ default: m
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage').then((m) => ({ default: m.CheckoutPage })))
 const OrderCompletePage = lazy(() =>
   import('./pages/OrderCompletePage').then((m) => ({ default: m.OrderCompletePage })),
+)
+const OrderFailPage = lazy(() => import('./pages/OrderFailPage').then((m) => ({ default: m.OrderFailPage })))
+const PaymentSuccessPage = lazy(() =>
+  import('./pages/PaymentSuccessPage').then((m) => ({ default: m.PaymentSuccessPage })),
 )
 const MyPage = lazy(() => import('./pages/MyPage').then((m) => ({ default: m.MyPage })))
 const LoginPage = lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })))
@@ -31,7 +34,6 @@ const AdminOrdersPage = lazy(() =>
   import('./pages/admin/AdminOrdersPage').then((m) => ({ default: m.AdminOrdersPage })),
 )
 
-/** 페이지 전환 시 scroll-to-top */
 function ScrollToTop() {
   const { pathname } = useLocation()
   useEffect(() => {
@@ -56,6 +58,8 @@ export default function App() {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/order/complete" element={<OrderCompletePage />} />
+          <Route path="/order/fail" element={<OrderFailPage />} />
+          <Route path="/payment/success" element={<PaymentSuccessPage />} />
           <Route path="/my" element={<MyPage />} />
           <Route path="/my/profile" element={<ProfilePage />} />
           <Route path="/my/coupons" element={<MyCouponsPage />} />
