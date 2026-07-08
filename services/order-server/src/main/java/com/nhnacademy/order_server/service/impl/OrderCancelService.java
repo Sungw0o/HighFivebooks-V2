@@ -4,20 +4,17 @@ import com.nhnacademy.order_server.adapter.BookClient;
 import com.nhnacademy.order_server.adapter.CouponClient;
 import com.nhnacademy.order_server.adapter.MemberClient;
 import com.nhnacademy.order_server.adapter.PaymentClient;
+import com.nhnacademy.order_server.dto.OrderCancellationData;
 import com.nhnacademy.order_server.dto.request.MemberCouponCancelRequest;
 import com.nhnacademy.order_server.dto.request.PaymentCancelRequest;
 import com.nhnacademy.order_server.dto.request.PointTransactionRequest;
-import com.nhnacademy.order_server.dto.request.StockRequest;
 import com.nhnacademy.order_server.entity.Order;
-import com.nhnacademy.order_server.entity.OrderItem;
 import com.nhnacademy.order_server.entity.enums.DeliveryStatus;
 import com.nhnacademy.order_server.exception.OrderErrorCode;
 import com.nhnacademy.order_server.exception.OrderException;
 import com.nhnacademy.order_server.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -28,58 +25,59 @@ public class OrderCancelService {
     private final MemberClient memberClient;
     private final CouponClient couponClient;
     private final BookClient bookClient;
+    private final OrderStatusMutationService orderStatusMutationService;
 
-    /**
-     * 주문 취소 트랜잭션 (기존 cancelOrderTransactional 로직)
-     * REQUIRES_NEW: 기존 트랜잭션과 무관하게 항상 새로운 트랜잭션으로 실행
-     */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void cancelOrderTransactional(Long orderId) {
-        Order order = orderRepository.findById(orderId)
+        Order order = orderRepository.findByIdWithItems(orderId)
                 .orElseThrow(() -> new OrderException(OrderErrorCode.ORDER_NOT_FOUND));
+        OrderCancellationData data = OrderCancellationData.from(order);
 
-        // 공통: 포인트 사용 취소 (TCC Cancel) - [수정됨]
-        if (order.getPointDiscount() != null && order.getPointDiscount() > 0) {
-            memberClient.cancelPoint(PointTransactionRequest.builder()
-                    .memberId(order.getUserId())
-                    .amount(Long.valueOf(order.getPointDiscount()))
-                    .orderId(order.getId())
-                    .build());
+        if (data.deliveryStatus() == DeliveryStatus.CANCELED) {
+            return;
         }
 
-        // 공통: 쿠폰 취소
-        if (order.getCouponId() != null) {
-            couponClient.cancelCouponUsage(order.getUserId(),
-                    new MemberCouponCancelRequest(order.getCouponId(), order.getId()));
-        }
+        cancelPointReservation(data);
+        cancelCouponUsage(data);
 
-        if (order.getDeliveryStatus() == DeliveryStatus.PREPARING) {
-            processPreparingOrderCancellation(order);
+        if (data.deliveryStatus() == DeliveryStatus.PREPARING) {
+            processPreparingOrderCancellation(data);
         } else {
-            processPaymentWaitingOrderCancellation(order);
+            processPaymentWaitingOrderCancellation(data);
         }
 
-        order.updateStatus(DeliveryStatus.CANCELED);
+        orderStatusMutationService.markCanceled(data.orderId());
     }
 
-    private void processPreparingOrderCancellation(Order o) {
-        if (o.getPaymentKey() != null) {
-            paymentClient.cancelPayment(o.getPaymentKey(), new PaymentCancelRequest("취소", o.getPaymentAmount()));
+    private void cancelPointReservation(OrderCancellationData data) {
+        if (data.pointDiscount() == null || data.pointDiscount() <= 0) {
+            return;
         }
-        // 재고 복구 (Restore)
-        bookClient.restoreStock(
-                o.getOrderItems().stream()
-                        .map(i -> new StockRequest(i.getBookId(), i.getQuantity()))
-                        .toList(),
-                o.getId() + "-restore"
-        );
+
+        memberClient.cancelPoint(PointTransactionRequest.builder()
+                .memberId(data.userId())
+                .amount(Long.valueOf(data.pointDiscount()))
+                .orderId(data.orderId())
+                .build());
     }
 
-    private void processPaymentWaitingOrderCancellation(Order o) {
-        // 재고 선점 해제 (Release)
-        bookClient.releaseHeldStock(
-                o.getOrderItems().stream().map(OrderItem::getBookId).toList(),
-                o.getOrderKey()
-        );
+    private void cancelCouponUsage(OrderCancellationData data) {
+        if (data.couponId() == null) {
+            return;
+        }
+
+        couponClient.cancelCouponUsage(data.userId(),
+                new MemberCouponCancelRequest(data.couponId(), data.orderId()));
+    }
+
+    private void processPreparingOrderCancellation(OrderCancellationData data) {
+        if (data.paymentKey() != null) {
+            paymentClient.cancelPayment(data.paymentKey(), new PaymentCancelRequest("cancel", data.paymentAmount()));
+        }
+
+        bookClient.restoreStock(data.restoreStockRequests(), data.orderId() + "-restore");
+    }
+
+    private void processPaymentWaitingOrderCancellation(OrderCancellationData data) {
+        bookClient.releaseHeldStock(data.releaseBookIds(), data.orderKey());
     }
 }

@@ -14,6 +14,8 @@ On Windows:
 .\mvnw.cmd test
 ```
 
+If `JAVA_HOME` is not configured on Windows, point it at a local JDK before running the wrapper.
+
 JaCoCo is kept behind the `coverage` Maven profile because its Java agent can fail on local Windows environments with non-ASCII user paths. CI still runs with coverage enabled.
 
 ## Coverage run

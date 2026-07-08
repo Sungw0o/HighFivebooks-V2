@@ -24,6 +24,7 @@ import com.nhnacademy.order_server.dto.OrderCalculationData;
 import com.nhnacademy.order_server.dto.message.PaymentSuccessMessage;
 import com.nhnacademy.order_server.dto.request.CouponCalculationRequest;
 import com.nhnacademy.order_server.dto.request.OrderCreateRequest;
+import com.nhnacademy.order_server.dto.request.PointEarnRequest;
 import com.nhnacademy.order_server.dto.request.PointTransactionRequest;
 import com.nhnacademy.order_server.dto.response.CouponCalculationResponse;
 import com.nhnacademy.order_server.dto.response.OrderCreateResponse;
@@ -78,6 +79,7 @@ class OrderServiceImplTest {
     @Mock private PaymentClient paymentClient;
     @Mock private RabbitTemplate rabbitTemplate;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private OrderStatusMutationService orderStatusMutationService;
 
     private OrderCreateRequest request;
     private Wrapper mockWrapper;
@@ -248,20 +250,20 @@ class OrderServiceImplTest {
             ReflectionTestUtils.setField(order, "couponId", 10L);
             ReflectionTestUtils.setField(order, "pointDiscount", 1000);
 
-            given(orderRepository.findById(orderId)).willReturn(Optional.of(order));
+            given(orderRepository.findByIdWithItems(orderId)).willReturn(Optional.of(order));
 
             PaymentSuccessMessage message = PaymentSuccessMessage.builder().orderId(orderId).paymentKey("pg").totalAmount(30000L).build();
             orderService.processPaymentSuccessMessage(message);
 
-            assertThat(order.getDeliveryStatus()).isEqualTo(DeliveryStatus.PREPARING);
             verify(couponClient).useCoupon(eq(100L), any());
+            verify(orderStatusMutationService).markPaymentSuccess(eq(orderId), eq("pg"), eq(30000));
         }
 
         @Test
         @DisplayName("무시: 결제 대기 상태가 아니면 무시")
         void ignore_NotWaiting() {
             Order order = Order.builder().id(1L).deliveryStatus(DeliveryStatus.CANCELED).build();
-            given(orderRepository.findById(1L)).willReturn(Optional.of(order));
+            given(orderRepository.findByIdWithItems(1L)).willReturn(Optional.of(order));
 
             PaymentSuccessMessage msg = PaymentSuccessMessage.builder().orderId(1L).build();
             orderService.processPaymentSuccessMessage(msg);
@@ -273,7 +275,7 @@ class OrderServiceImplTest {
         @DisplayName("실패: 주문 금액 불일치")
         void fail_AmountMismatch() {
             Order order = Order.builder().id(1L).deliveryStatus(DeliveryStatus.PAYMENT_WAITING).paymentAmount(50000).build();
-            given(orderRepository.findById(1L)).willReturn(Optional.of(order));
+            given(orderRepository.findByIdWithItems(1L)).willReturn(Optional.of(order));
             PaymentSuccessMessage msg = PaymentSuccessMessage.builder().orderId(1L).totalAmount(10000L).build();
 
             assertThatThrownBy(() -> orderService.processPaymentSuccessMessage(msg))
@@ -426,12 +428,18 @@ class OrderServiceImplTest {
 
             given(orderRepository.findByDeliveryStatusAndDelivery_ActualCompletionDateBefore(eq(DeliveryStatus.DELIVERY_COMPLETED), any()))
                     .willReturn(List.of(order));
-            given(orderRepository.findById(orderId)).willReturn(Optional.of(order));
+            PointEarnRequest earnRequest = PointEarnRequest.builder()
+                    .memberId(100L)
+                    .eventType("EARN_ORDER")
+                    .pureAmount(1000)
+                    .orderId(orderId)
+                    .build();
+            given(orderStatusMutationService.markPurchaseConfirmed(orderId)).willReturn(Optional.of(earnRequest));
 
             orderService.autoConfirmPurchase();
 
-            assertThat(order.getDeliveryStatus()).isEqualTo(DeliveryStatus.PURCHASE_CONFIRMED);
-            verify(rabbitTemplate).convertAndSend(eq("point-queue"), any(com.nhnacademy.order_server.dto.request.PointEarnRequest.class));
+            verify(orderStatusMutationService).markPurchaseConfirmed(orderId);
+            verify(rabbitTemplate).convertAndSend(eq("point-queue"), any(PointEarnRequest.class));
         }
 
         @Test
@@ -440,13 +448,13 @@ class OrderServiceImplTest {
             Order order = Order.builder().id(1L).userId(100L).deliveryStatus(DeliveryStatus.PAYMENT_WAITING).orderKey("key").build();
             order.addOrderItem(OrderItem.builder().bookId(1L).quantity(1).build());
 
-            given(orderRepository.findByDeliveryStatusAndOrderDateBefore(eq(DeliveryStatus.PAYMENT_WAITING), any()))
+            given(orderRepository.findPaymentWaitingOrdersBeforeWithItems(any()))
                     .willReturn(List.of(order));
 
             orderService.cancelExpiredOrders();
 
-            assertThat(order.getDeliveryStatus()).isEqualTo(DeliveryStatus.CANCELED);
             verify(bookClient).releaseHeldStock(anyList(), anyString());
+            verify(orderStatusMutationService).markCanceled(1L);
         }
     }
 
@@ -456,8 +464,8 @@ class OrderServiceImplTest {
         @Test
         @DisplayName("실패: 이미 취소/반품된 주문")
         void fail_AlreadyCanceled() {
-            Order order = Order.builder().id(1L).deliveryStatus(DeliveryStatus.CANCELED).build();
-            given(orderRepository.findById(1L)).willReturn(Optional.of(order));
+            given(orderStatusMutationService.markPurchaseConfirmed(1L))
+                    .willThrow(new OrderException(OrderErrorCode.ALREADY_PROCESSED));
 
             assertThatThrownBy(() -> orderService.purchaseConfirm(1L))
                     .isInstanceOf(OrderException.class)
@@ -467,11 +475,16 @@ class OrderServiceImplTest {
         @Test
         @DisplayName("성공: 배송 정보가 없어도 확정 가능 (null safety)")
         void success_NoDeliveryInfo() {
-            Order order = Order.builder().id(1L).userId(100L).paymentAmount(1000).deliveryStatus(DeliveryStatus.DELIVERY_COMPLETED).build();
-            given(orderRepository.findById(1L)).willReturn(Optional.of(order));
+            PointEarnRequest earnRequest = PointEarnRequest.builder()
+                    .memberId(100L)
+                    .eventType("EARN_ORDER")
+                    .pureAmount(1000)
+                    .orderId(1L)
+                    .build();
+            given(orderStatusMutationService.markPurchaseConfirmed(1L)).willReturn(Optional.of(earnRequest));
 
             orderService.purchaseConfirm(1L);
-            assertThat(order.getDeliveryStatus()).isEqualTo(DeliveryStatus.PURCHASE_CONFIRMED);
+            verify(rabbitTemplate).convertAndSend(eq("point-queue"), eq(earnRequest));
         }
     }
 

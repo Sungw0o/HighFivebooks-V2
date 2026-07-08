@@ -58,6 +58,11 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByDeliveryStatusAndDelivery_ActualShipDateBefore(DeliveryStatus status, LocalDateTime threshold);
     List<Order> findByDeliveryStatusAndDelivery_ActualCompletionDateBefore(DeliveryStatus status, LocalDateTime threshold);
 
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN FETCH o.orderItems " +
+            "WHERE o.deliveryStatus = com.nhnacademy.order_server.entity.enums.DeliveryStatus.PAYMENT_WAITING " +
+            "AND o.orderDate < :threshold")
+    List<Order> findPaymentWaitingOrdersBeforeWithItems(@Param("threshold") LocalDateTime threshold);
+
     @Query("SELECT CASE WHEN COUNT(oi) > 0 THEN true ELSE false END FROM Order o JOIN o.orderItems oi " +
             "WHERE o.userId = :userId AND oi.bookId = :bookId AND o.deliveryStatus = 'PURCHASE_CONFIRMED'")
     boolean hasPurchasedBook(@Param("userId") Long userId, @Param("bookId") Long bookId);

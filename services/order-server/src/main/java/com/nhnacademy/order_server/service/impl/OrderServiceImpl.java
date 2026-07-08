@@ -4,6 +4,8 @@ import com.nhnacademy.order_server.adapter.BookClient;
 import com.nhnacademy.order_server.adapter.CouponClient;
 import com.nhnacademy.order_server.adapter.MemberClient;
 import com.nhnacademy.order_server.dto.OrderCalculationData;
+import com.nhnacademy.order_server.dto.OrderCancellationData;
+import com.nhnacademy.order_server.dto.PaymentSuccessProcessingData;
 import com.nhnacademy.order_server.dto.message.PaymentSuccessMessage;
 import com.nhnacademy.order_server.dto.request.CouponCalculationRequest;
 import com.nhnacademy.order_server.dto.request.MemberCouponUseRequest;
@@ -62,6 +64,7 @@ public class OrderServiceImpl implements OrderService {
     private final PasswordEncoder passwordEncoder;
     private final OrderCreateService orderCreateService;
     private final OrderCancelService orderCancelService;
+    private final OrderStatusMutationService orderStatusMutationService;
 
     // =====================================================================================
     // 1. CREATE
@@ -150,9 +153,8 @@ public class OrderServiceImpl implements OrderService {
     // =====================================================================================
 
     @Override
-    @Transactional
     public void processPaymentSuccessMessage(PaymentSuccessMessage message) {
-        Order order = orderRepository.findById(message.getOrderId())
+        Order order = orderRepository.findByIdWithItems(message.getOrderId())
                 .orElseThrow(() -> new OrderException(OrderErrorCode.ORDER_NOT_FOUND));
 
         if (order.getDeliveryStatus() != DeliveryStatus.PAYMENT_WAITING) {
@@ -163,45 +165,20 @@ public class OrderServiceImpl implements OrderService {
             throw new OrderException(OrderErrorCode.INVALID_REQUEST);
         }
 
-        order.updateStatus(DeliveryStatus.PREPARING);
-        order.setPaymentKey(message.getPaymentKey());
+        PaymentSuccessProcessingData data = PaymentSuccessProcessingData.from(order);
 
-        if (order.getCouponId() != null) {
-            couponClient.useCoupon(order.getUserId(), new MemberCouponUseRequest(order.getCouponId(), order.getId()));
+        if (data.couponId() != null) {
+            couponClient.useCoupon(data.userId(), new MemberCouponUseRequest(data.couponId(), data.orderId()));
         }
 
-        finalizeExternalResources(order);
+        finalizeExternalResources(data);
+        orderStatusMutationService.markPaymentSuccess(data.orderId(), message.getPaymentKey(), data.paymentAmount());
     }
 
     @Override
-    @Transactional
     public void purchaseConfirm(Long orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new OrderException(OrderErrorCode.ORDER_NOT_FOUND));
-
-        log.info("purchaseConfirm 호출: orderId={}, currentStatus={}", orderId, order.getDeliveryStatus());
-
-        // 이미 구매확정이거나 취소/반품 완료 상태면 예외 처리
-        if (order.getDeliveryStatus() == DeliveryStatus.PURCHASE_CONFIRMED) {
-            throw new OrderException(OrderErrorCode.ALREADY_PROCESSED);
-        }
-        if (order.getDeliveryStatus() == DeliveryStatus.CANCELED ||
-                order.getDeliveryStatus() == DeliveryStatus.RETURN_COMPLETED) {
-            throw new OrderException(OrderErrorCode.ALREADY_PROCESSED);
-        }
-
-        // 배송 완료 날짜가 없으면 채워줌
-        if (order.getDelivery() != null && order.getDelivery().getActualCompletionDate() == null) {
-            order.getDelivery().completeDelivery();
-        }
-
-        // 상태 변경
-        order.updateStatus(DeliveryStatus.PURCHASE_CONFIRMED);
-
-        // 포인트 적립 메시지 발행
-        if (order.getUserId() != null && order.getPaymentAmount() != null) {
-            sendPointEarnMessage(order);
-        }
+        orderStatusMutationService.markPurchaseConfirmed(orderId)
+                .ifPresent(this::sendPointEarnMessage);
     }
 
     // =====================================================================================
@@ -227,7 +204,6 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    @Transactional
     public void autoConfirmPurchase() {
         LocalDateTime threshold = LocalDateTime.now().minusDays(10);
         orderRepository.findByDeliveryStatusAndDelivery_ActualCompletionDateBefore(DeliveryStatus.DELIVERY_COMPLETED,
@@ -236,16 +212,16 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    @Transactional
     public void cancelExpiredOrders() {
         LocalDateTime threshold = LocalDateTime.now().minusHours(24);
 
         orderRepository
-                .findByDeliveryStatusAndOrderDateBefore(DeliveryStatus.PAYMENT_WAITING, threshold)
+                .findPaymentWaitingOrdersBeforeWithItems(threshold)
                 .forEach(o -> {
                     try {
-                        processPaymentWaitingOrderCancellation(o);
-                        o.updateStatus(DeliveryStatus.CANCELED);
+                        OrderCancellationData data = OrderCancellationData.from(o);
+                        processPaymentWaitingOrderCancellation(data);
+                        orderStatusMutationService.markCanceled(data.orderId());
                     } catch (Exception e) {
                         log.error("결제대기 주문 자동 취소 실패 - orderId={}", o.getId(), e);
                     }
@@ -326,46 +302,37 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private void sendPointEarnMessage(Order o) {
-        PointEarnRequest pointRequest = PointEarnRequest.builder()
-                .memberId(o.getUserId())
-                .eventType("EARN_ORDER")
-                .pureAmount(o.getPaymentAmount())
-                .orderId(o.getId())
-                .build();
+    private void sendPointEarnMessage(PointEarnRequest pointRequest) {
         rabbitTemplate.convertAndSend("point-queue", pointRequest);
     }
 
     // [TCC Confirm] 결제 성공 후처리
-    private void finalizeExternalResources(Order o) {
+    private void finalizeExternalResources(PaymentSuccessProcessingData data) {
         // 1. 재고 확정
-        List<Long> bookIds = o.getOrderItems().stream()
-                .flatMap(i -> Collections.nCopies(i.getQuantity(), i.getBookId()).stream())
-                .toList();
-        bookClient.confirmStockDeduction(bookIds, o.getOrderKey());
+        bookClient.confirmStockDeduction(data.stockDeductionBookIds(), data.orderKey());
 
         // 2. 포인트 사용 확정 (TCC Confirm) - [수정됨]
-        if (o.getPointDiscount() != null && o.getPointDiscount() > 0) {
+        if (data.pointDiscount() != null && data.pointDiscount() > 0) {
             memberClient.confirmPoint(PointTransactionRequest.builder()
-                    .memberId(o.getUserId())
-                    .amount(Long.valueOf(o.getPointDiscount()))
-                    .orderId(o.getId())
+                    .memberId(data.userId())
+                    .amount(Long.valueOf(data.pointDiscount()))
+                    .orderId(data.orderId())
                     .build());
         }
     }
 
     // [TCC Cancel] 결제 대기 중 취소/실패 시
-    private void processPaymentWaitingOrderCancellation(Order o) {
+    private void processPaymentWaitingOrderCancellation(OrderCancellationData data) {
         // 1. 포인트 사용 취소 (TCC Cancel) - [수정됨]
-        if (o.getPointDiscount() != null && o.getPointDiscount() > 0) {
+        if (data.pointDiscount() != null && data.pointDiscount() > 0) {
             memberClient.cancelPoint(PointTransactionRequest.builder()
-                    .memberId(o.getUserId())
-                    .amount(Long.valueOf(o.getPointDiscount()))
-                    .orderId(o.getId())
+                    .memberId(data.userId())
+                    .amount(Long.valueOf(data.pointDiscount()))
+                    .orderId(data.orderId())
                     .build());
         }
         // 2. 재고 선점 해제
-        bookClient.releaseHeldStock(o.getOrderItems().stream().map(OrderItem::getBookId).toList(), o.getOrderKey());
+        bookClient.releaseHeldStock(data.releaseBookIds(), data.orderKey());
     }
 
     // [Compensate] 주문 생성 중 에러 발생 시 보상 트랜잭션
