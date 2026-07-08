@@ -27,6 +27,7 @@ x-app-env: &app-env
   COUPON_SERVICE_URL: http://coupon-server:8080
   PAYMENT_SERVICE_URL: http://payment-server:8080
   ORDER_SERVICE_URL: http://order-server:8080
+  MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
 
 x-app-healthcheck: &app-healthcheck
   test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
@@ -95,7 +96,7 @@ services:
       retries: 10
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    image: ghcr.io/sungw0o/highfivebooks-v2/elasticsearch-nori:8.18.8
     container_name: highfive-elasticsearch
     restart: unless-stopped
     ports:
