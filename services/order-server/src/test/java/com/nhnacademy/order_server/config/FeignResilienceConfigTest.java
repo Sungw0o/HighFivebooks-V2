@@ -1,20 +1,19 @@
 package com.nhnacademy.order_server.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import feign.Retryer;
+import java.io.IOException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.ClassPathResource;
 
-import java.io.IOException;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 class FeignResilienceConfigTest {
 
     @Test
-    @DisplayName("Feign 기본 재시도를 끈다")
+    @DisplayName("Feign 기본 재시도를 비활성화한다")
     void feignRetryerDisablesImplicitRetry() {
         FeignResilienceConfig config = new FeignResilienceConfig();
 
