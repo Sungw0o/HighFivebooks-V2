@@ -7,12 +7,12 @@ param(
 $ErrorActionPreference = "Stop"
 
 function Invoke-Kubectl {
-    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
+    param([Parameter(ValueFromRemainingArguments = $true)][string[]]$KubectlArgs)
 
-    Write-Host "`n> kubectl $($Args -join ' ')" -ForegroundColor Cyan
-    & kubectl @Args
+    Write-Host "`n> kubectl $($KubectlArgs -join ' ')" -ForegroundColor Cyan
+    & kubectl @KubectlArgs
     if ($LASTEXITCODE -ne 0) {
-        throw "kubectl command failed: kubectl $($Args -join ' ')"
+        throw "kubectl command failed: kubectl $($KubectlArgs -join ' ')"
     }
 }
 
@@ -45,14 +45,14 @@ $statefulSets = @(
 
 $services = $deployments + $statefulSets
 
-Invoke-Kubectl "get", "namespace", $Namespace
+Invoke-Kubectl get namespace $Namespace
 
 foreach ($name in $statefulSets) {
-    Invoke-Kubectl "-n", $Namespace, "rollout", "status", "statefulset/$name", "--timeout=$Timeout"
+    Invoke-Kubectl -n $Namespace rollout status "statefulset/$name" "--timeout=$Timeout"
 }
 
 foreach ($name in $deployments) {
-    Invoke-Kubectl "-n", $Namespace, "rollout", "status", "deployment/$name", "--timeout=$Timeout"
+    Invoke-Kubectl -n $Namespace rollout status "deployment/$name" "--timeout=$Timeout"
 }
 
 foreach ($name in $services) {
@@ -113,6 +113,6 @@ for item in $required; do
 done
 '@
 
-Invoke-Kubectl "-n", $Namespace, "run", "k8s-smoke-curl", "--rm", "-i", "--restart=Never", "--image=$CurlImage", "--command", "--", "sh", "-c", $curlScript
+Invoke-Kubectl -n $Namespace run k8s-smoke-curl --rm -i --restart=Never "--image=$CurlImage" --command -- sh -c $curlScript
 
 Write-Host "`nK8s smoke check passed." -ForegroundColor Green
