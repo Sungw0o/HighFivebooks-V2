@@ -1,0 +1,183 @@
+{
+    "metrics": {
+        "http_req_waiting": {
+            "p(90)": 5325.357353299999,
+            "p(95)": 7065.4900744,
+            "avg": 919.99181925625,
+            "min": 6.537146,
+            "med": 43.3875475,
+            "max": 8889.845999
+        },
+        "http_reqs": {
+            "count": 160,
+            "rate": 5.0460991793004935
+        },
+        "book_detail_failure": {
+            "passes": 0,
+            "fails": 140,
+            "value": 0
+        },
+        "checks": {
+            "passes": 320,
+            "fails": 0,
+            "value": 1
+        },
+        "vus_max": {
+            "value": 10,
+            "min": 10,
+            "max": 10
+        },
+        "data_received": {
+            "count": 179660,
+            "rate": 5666.138615957041
+        },
+        "http_req_tls_handshaking": {
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0
+        },
+        "http_req_connecting": {
+            "med": 0,
+            "max": 3.830252,
+            "p(90)": 0,
+            "p(95)": 3.410601699999998,
+            "avg": 0.22491250625,
+            "min": 0
+        },
+        "http_req_receiving": {
+            "med": 0.5557075,
+            "max": 250.633411,
+            "p(90)": 105.0605637,
+            "p(95)": 208.57193829999997,
+            "avg": 24.165089368749996,
+            "min": 0.019718
+        },
+        "iterations": {
+            "count": 160,
+            "rate": 5.0460991793004935
+        },
+        "book_list_failure": {
+            "passes": 0,
+            "fails": 20,
+            "value": 0
+        },
+        "http_req_blocked": {
+            "med": 0.0054805,
+            "max": 5.387549,
+            "p(90)": 0.03582919999999999,
+            "p(95)": 4.671397349999996,
+            "avg": 0.33162247500000014,
+            "min": 0.002375
+        },
+        "http_req_duration{expected_response:true}": {
+            "max": 9082.319474,
+            "p(90)": 5421.385211499999,
+            "p(95)": 7281.218938599999,
+            "avg": 944.2185554375001,
+            "min": 7.073852,
+            "med": 50.350182000000004
+        },
+        "vus": {
+            "min": 5,
+            "max": 10,
+            "value": 5
+        },
+        "book_detail_duration": {
+            "avg": 92.28057157142855,
+            "min": 7.073852,
+            "med": 39.8009545,
+            "max": 801.678049,
+            "p(90)": 163.36554520000004,
+            "p(95)": 254.02366279999947,
+            "thresholds": {
+                "p(95)<500": false
+            }
+        },
+        "http_req_sending": {
+            "avg": 0.06164681249999997,
+            "min": 0.006212,
+            "med": 0.024167,
+            "max": 1.555847,
+            "p(90)": 0.066649,
+            "p(95)": 0.0970395499999989
+        },
+        "data_sent": {
+            "count": 16560,
+            "rate": 522.2712650576011
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 160,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "book_list_duration": {
+            "max": 9082.319474,
+            "p(90)": 8865.507691,
+            "p(95)": 9039.513624449999,
+            "avg": 6907.7844425,
+            "min": 5186.230752,
+            "med": 6612.6543655000005,
+            "thresholds": {
+                "p(95)<2000": true
+            }
+        },
+        "iteration_duration": {
+            "min": 1008.100113,
+            "med": 1056.6781085,
+            "max": 10090.665222,
+            "p(90)": 6421.986697099999,
+            "p(95)": 8282.4123236,
+            "avg": 1946.602239206251
+        },
+        "http_req_duration": {
+            "avg": 944.2185554375001,
+            "min": 7.073852,
+            "med": 50.350182000000004,
+            "max": 9082.319474,
+            "p(90)": 5421.385211499999,
+            "p(95)": 7281.218938599999
+        }
+    },
+    "root_group": {
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "book detail status is 200": {
+                    "path": "::book detail status is 200",
+                    "id": "e85f639e50252d93428f36634288ff95",
+                    "passes": 140,
+                    "fails": 0,
+                    "name": "book detail status is 200"
+                },
+                "book detail has isbn": {
+                    "name": "book detail has isbn",
+                    "path": "::book detail has isbn",
+                    "id": "6ef0416bfefaa6c8ef6d81087edbea9c",
+                    "passes": 140,
+                    "fails": 0
+                },
+                "book list status is 200": {
+                    "name": "book list status is 200",
+                    "path": "::book list status is 200",
+                    "id": "06fdb257ab9a68accd40e9a8299195b8",
+                    "passes": 20,
+                    "fails": 0
+                },
+                "book list has content": {
+                    "passes": 20,
+                    "fails": 0,
+                    "name": "book list has content",
+                    "path": "::book list has content",
+                    "id": "fa0b910354d3c70eb8eaa94c35696166"
+                }
+            },
+        "name": "",
+        "path": ""
+    }
+}
