@@ -20,6 +20,9 @@ dist/
 
 # Local env
 .env
+
+# Original per-service repository workflows are not used in this monorepo.
+services/*/.github/
 .env.*
 !.env.example
 

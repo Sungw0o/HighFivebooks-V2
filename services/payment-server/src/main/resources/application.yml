@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: TEAM5-PAYMENT-SERVER
+  profiles:
+    default: local

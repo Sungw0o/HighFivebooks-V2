@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: TEAM5-ORDER-SERVER
+  profiles:
+    default: local

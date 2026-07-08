@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: TEAM5-COUPON-SERVER
+  profiles:
+    default: local
