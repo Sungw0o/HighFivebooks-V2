@@ -55,6 +55,13 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME}
     password: ${RABBITMQ_PASSWORD}
+    listener:
+      simple:
+        retry:
+          max-attempts: ${RABBIT_LISTENER_RETRY_MAX_ATTEMPTS:3}
+          initial-interval: ${RABBIT_LISTENER_RETRY_INITIAL_INTERVAL_MS:1000}
+          multiplier: ${RABBIT_LISTENER_RETRY_MULTIPLIER:2.0}
+          max-interval: ${RABBIT_LISTENER_RETRY_MAX_INTERVAL_MS:10000}
   data:
     redis:
       host: ${REDIS_HOST}
