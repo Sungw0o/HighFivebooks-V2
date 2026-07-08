@@ -31,6 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+# 로컬/테스트 전용 설정만 무시한다. 베이스 application.yml 은 커밋한다.
 application-local.yml
 application-test.yml
-application.yml
