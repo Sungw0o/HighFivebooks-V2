@@ -1,0 +1,48 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: TEAM5-BOOK-SERVER
+  cloud:
+    config:
+      enabled: false
+    discovery:
+      enabled: false
+  jpa:
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: Asia/Seoul
+
+eureka:
+  client:
+    enabled: false
+
+springdoc:
+  version: ${SPRINGDOC_VERSION:v1.0}
+
+# 검색/RAG 애플리케이션 상수 (환경 비의존, 코드 기본값 기준)
+rag:
+  index-name: ${RAG_INDEX_NAME:emb-high-five}
+  dim: ${RAG_DIM:1024}
+  similarity: ${RAG_SIMILARITY:cosine}
+  reindex:
+    enabled: ${RAG_REINDEX_ENABLED:false}
+
+rag-search:
+  top-k: ${RAG_SEARCH_TOP_K:5}
+  rereank: ${RAG_SEARCH_RERANK:false}
+  fields:
+    - title
+    - author
+    - content
+
+gemini:
+  embedding-model: ${GEMINI_EMBEDDING_MODEL:text-embedding-004}
+
+minio:
+  connection-timeout: ${MINIO_CONNECTION_TIMEOUT:10s}
+  socket-timeout: ${MINIO_SOCKET_TIMEOUT:60s}

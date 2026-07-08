@@ -31,8 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
-**.yml
 
+# 로컬 개발 전용 설정과 시크릿만 무시한다.
+# application.yml / application-prod.yml 은 반드시 커밋한다.
 src/main/resources/application-local.yml
-
-*.csv파일명.yml
+.env
