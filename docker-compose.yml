@@ -1,5 +1,40 @@
 name: highfivebooks-v2
 
+# 사용법
+#   인프라만:        docker compose up -d
+#   전체 MSA 통합:   docker compose --profile apps up -d --build
+#
+# 앱 서비스는 각 서비스 Dockerfile이 target/*.jar 를 COPY 하므로,
+# 빌드 전에 서비스별로 jar 를 먼저 패키징해야 한다.
+#   예) cd services/order-server && ./mvnw.cmd -DskipTests package
+# 환경변수는 루트 .env 를 사용한다 (cp .env.example .env).
+
+# 앱 서비스 공통 환경변수: 컨테이너 네트워크 기준 호스트로 재정의한다.
+x-app-env: &app-env
+  SPRING_PROFILES_ACTIVE: prod
+  SERVER_PORT: "8080"
+  MYSQL_HOST: mysql
+  MYSQL_PORT: "3306"
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: "5672"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  ELASTICSEARCH_HOST: elasticsearch
+  ELASTICSEARCH_PORT: "9200"
+  MINIO_URL: http://minio:9000
+  BOOK_SERVICE_URL: http://book-server:8080
+  MEMBER_SERVICE_URL: http://member-server:8080
+  COUPON_SERVICE_URL: http://coupon-server:8080
+  PAYMENT_SERVICE_URL: http://payment-server:8080
+  ORDER_SERVICE_URL: http://order-server:8080
+
+x-app-healthcheck: &app-healthcheck
+  test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+  interval: 15s
+  timeout: 5s
+  retries: 10
+  start_period: 60s
+
 services:
   mysql:
     image: mysql:8.4
@@ -116,6 +151,128 @@ services:
       mc mb --ignore-existing highfive/$${MINIO_BOOK_BUCKET_NAME} &&
       mc mb --ignore-existing highfive/$${MINIO_REVIEW_BUCKET_NAME}
       "
+
+  book-server:
+    build:
+      context: ./services/book-server
+    image: highfivebooks-v2/book-server:local
+    container_name: highfive-book-server
+    profiles: ["apps"]
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    environment:
+      <<: *app-env
+    ports:
+      - "${BOOK_SERVER_PORT:-9002}:8080"
+    healthcheck: *app-healthcheck
+
+  member-server:
+    build:
+      context: ./services/member-server
+    image: highfivebooks-v2/member-server:local
+    container_name: highfive-member-server
+    profiles: ["apps"]
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    environment:
+      <<: *app-env
+    ports:
+      - "${MEMBER_SERVER_PORT:-9001}:8080"
+    healthcheck: *app-healthcheck
+
+  coupon-server:
+    build:
+      context: ./services/coupon-server
+    image: highfivebooks-v2/coupon-server:local
+    container_name: highfive-coupon-server
+    profiles: ["apps"]
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    environment:
+      <<: *app-env
+    ports:
+      - "${COUPON_SERVER_PORT:-9004}:8080"
+    healthcheck: *app-healthcheck
+
+  payment-server:
+    build:
+      context: ./services/payment-server
+    image: highfivebooks-v2/payment-server:local
+    container_name: highfive-payment-server
+    profiles: ["apps"]
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    environment:
+      <<: *app-env
+    ports:
+      - "${PAYMENT_SERVER_PORT:-9005}:8080"
+    healthcheck: *app-healthcheck
+
+  order-server:
+    build:
+      context: ./services/order-server
+    image: highfivebooks-v2/order-server:local
+    container_name: highfive-order-server
+    profiles: ["apps"]
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      book-server:
+        condition: service_healthy
+      member-server:
+        condition: service_healthy
+      coupon-server:
+        condition: service_healthy
+      payment-server:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    environment:
+      <<: *app-env
+    ports:
+      - "${ORDER_SERVER_PORT:-9006}:8080"
+    healthcheck: *app-healthcheck
 
 volumes:
   highfive_mysql_data:
