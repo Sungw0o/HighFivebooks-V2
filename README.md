@@ -47,14 +47,27 @@ forward as first-class V2 services:
 - `config_server`: replaced by ConfigMap and Secret
 - `gateway`: replaced by Ingress
 
-## Current Baseline
+## Current Refactoring Status
 
-`services/order-server` has the first refactoring baseline applied:
+`services/order-server` is the main backend refactoring target. The current
+state focuses on reducing distributed-system failure modes without collapsing
+the MSA boundaries.
 
-- default `mvn test` no longer attaches the JaCoCo Java agent
-- JaCoCo is available through the `coverage` Maven profile
-- tests disable Spring Cloud Config and Eureka through `src/test/resources`
-- local order service tests pass
+- the order flow and Feign boundaries are mapped
+- Feign contract tests cover the main book/member/coupon/payment client calls
+- order DB mutations are separated from external Feign/Rabbit orchestration
+- payment success messages use RabbitMQ retry and DLQ isolation
+- scheduled order jobs use Redis-backed ShedLock for multi-instance safety
+- Feign default retry is disabled; timeout and circuit breaker settings are explicit
+- K8s manifests replace Eureka/Config Server/Gateway with Service DNS, ConfigMap/Secret, and Ingress
+
+More detail:
+
+- [`docs/order-flow-boundary-map.md`](docs/order-flow-boundary-map.md)
+- [`docs/order-resilience-evidence.md`](docs/order-resilience-evidence.md)
+- [`docs/k8s-transition-runbook.md`](docs/k8s-transition-runbook.md)
+
+## Verification
 
 ```powershell
 cd services/order-server
@@ -64,7 +77,19 @@ cd services/order-server
 Expected result:
 
 ```text
-98 tests, 0 failures, 0 errors, 0 skipped
+126 tests, 0 failures, 0 errors, 0 skipped
+```
+
+Render the base Kubernetes manifests:
+
+```powershell
+kubectl kustomize k8s/base
+```
+
+Run the local K8s smoke check after applying the manifests:
+
+```powershell
+.\scripts\k8s-smoke.ps1
 ```
 
 ## Local Infrastructure
@@ -102,13 +127,30 @@ Kubernetes must use generated Secret values instead.
 Runtime profile details are tracked in
 [`docs/runtime-config.md`](docs/runtime-config.md).
 
-## Next Priorities
+## Portfolio Evidence
 
-1. Map the order flow and every Feign boundary.
-2. Add boundary tests for book/member/coupon/payment calls.
-3. Refactor the order transaction boundary.
-4. Add RabbitMQ retry and DLQ handling for payment success messages.
-5. Add scheduler locking for multi-instance order deployments.
-6. Build the local integration environment.
-7. Move the runtime to Kubernetes manifests.
-8. Connect the React storefront to real API scenarios.
+The main engineering story is:
+
+1. Kept the original MSA shape instead of merging services into a monolith.
+2. Reduced DB transaction scope in `order-server` so external Feign/Rabbit I/O is not hidden inside broad service-level transactions.
+3. Added Feign boundary tests to make external API contracts visible and regression-resistant.
+4. Isolated RabbitMQ poison messages with retry and DLQ policies for payment success events.
+5. Protected scheduled order jobs from duplicate execution when `order-server` runs with multiple replicas.
+6. Moved the runtime direction from Spring Cloud operational services to Kubernetes-native primitives.
+
+Interview version:
+
+```text
+I focused the refactoring on the order domain because it coordinates payment,
+stock, coupon, and point state changes. I separated DB mutations from external
+I/O, disabled implicit Feign retries for non-idempotent calls, added RabbitMQ
+retry/DLQ for asynchronous payment success events, and protected scheduled jobs
+with Redis-backed ShedLock for multi-replica Kubernetes deployments.
+```
+
+## Remaining Priorities
+
+1. Capture K8s smoke check output and screenshots/log snippets as final portfolio evidence.
+2. Finish the React/Vite storefront integration against the real backend contracts.
+3. Add README screenshots or diagrams for the order flow and K8s transition.
+4. Optionally split ArgoCD/Argo Rollouts experiments into a separate deployment evidence section.

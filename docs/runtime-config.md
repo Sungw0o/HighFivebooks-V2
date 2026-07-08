@@ -82,6 +82,55 @@ PAYMENT_SERVICE_URL=http://payment-server:8080
 ORDER_SERVICE_URL=http://order-server:8080
 ```
 
+## Feign Resilience
+
+`order-server` disables implicit Feign retry and relies on explicit timeout,
+circuit breaker, and domain compensation paths.
+
+```env
+FEIGN_CONNECT_TIMEOUT_MS=1000
+FEIGN_READ_TIMEOUT_MS=3000
+CIRCUIT_BREAKER_SLIDING_WINDOW_SIZE=20
+CIRCUIT_BREAKER_MINIMUM_CALLS=5
+CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD=50
+CIRCUIT_BREAKER_WAIT_DURATION=10s
+CIRCUIT_BREAKER_HALF_OPEN_CALLS=3
+```
+
+The retry decision is documented in
+[`order-resilience-evidence.md`](order-resilience-evidence.md). The short
+version is that stock, coupon, and point state-changing calls should not be
+retried implicitly at the Feign layer.
+
+## RabbitMQ Listener Retry
+
+Payment success messages are retried by the Rabbit listener container and then
+dead-lettered when retries are exhausted.
+
+```env
+RABBIT_LISTENER_RETRY_MAX_ATTEMPTS=3
+RABBIT_LISTENER_RETRY_INITIAL_INTERVAL_MS=1000
+RABBIT_LISTENER_RETRY_MULTIPLIER=2.0
+RABBIT_LISTENER_RETRY_MAX_INTERVAL_MS=10000
+```
+
+The payment success queue is configured with a dead-letter exchange and routing
+key in `services/order-server`.
+
+## Scheduler Lock
+
+`order-server` uses Redis-backed ShedLock for scheduled jobs. This protects
+multi-replica Kubernetes deployments from running the same order cleanup or
+status update job on multiple Pods at the same time.
+
+Redis runtime values:
+
+```env
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_DATABASE=0
+```
+
 ## Local Startup
 
 From the repository root:
