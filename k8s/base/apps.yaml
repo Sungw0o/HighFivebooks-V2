@@ -202,15 +202,28 @@ spec:
   selector:
     app: payment-server
 ---
-apiVersion: apps/v1
-kind: Deployment
+# order-server is deployed with Argo Rollouts so canary promote/abort
+# evidence can be captured without changing the Service contract.
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: order-server
 spec:
   replicas: 2
+  revisionHistoryLimit: 3
   selector:
     matchLabels:
       app: order-server
+  strategy:
+    canary:
+      steps:
+        - setWeight: 20
+        - pause:
+            duration: 60s
+        - setWeight: 50
+        - pause:
+            duration: 60s
+        - setWeight: 100
   template:
     metadata:
       labels:
