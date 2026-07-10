@@ -1,0 +1,47 @@
+variable "aws_region" {
+  description = "AWS region for ephemeral evidence."
+  type        = string
+  default     = "ap-northeast-2"
+}
+
+variable "cluster_name" {
+  description = "Ephemeral EKS cluster name."
+  type        = string
+  default     = "highfivebooks-ephemeral"
+}
+
+variable "kubernetes_version" {
+  description = "Optional EKS Kubernetes version. Leave null to use the AWS default supported version."
+  type        = string
+  default     = null
+}
+
+variable "node_instance_types" {
+  description = "Small worker node instance types for evidence capture."
+  type        = list(string)
+  default     = ["t3.medium"]
+}
+
+variable "node_desired_size" {
+  description = "Desired worker node count. Keep this small for cost control."
+  type        = number
+  default     = 1
+}
+
+variable "node_min_size" {
+  description = "Minimum worker node count."
+  type        = number
+  default     = 1
+}
+
+variable "node_max_size" {
+  description = "Maximum worker node count."
+  type        = number
+  default     = 2
+}
+
+variable "force_delete_ecr" {
+  description = "Allow Terraform destroy to delete non-empty ECR repositories."
+  type        = bool
+  default     = false
+}
