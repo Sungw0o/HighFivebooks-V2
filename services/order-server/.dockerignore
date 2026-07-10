@@ -1,0 +1,5 @@
+﻿# Docker build context: target/ 폴더의 JAR를 반드시 포함해야 한다.
+# .gitignore의 target/ 제외 규칙을 무력화한다.
+*
+!target/
+!target/*.jar
