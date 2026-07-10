@@ -15,3 +15,17 @@ resources:
   - apps.yaml
   - ingress.yaml
 
+# Jenkins가 빌드 후 `kustomize edit set image ...`로 newTag를 갱신하는 지점.
+# 이 커밋을 Argo CD가 감지해 자동 배포한다. (GitOps 단일 소스 = Git)
+images:
+  - name: ghcr.io/sungw0o/highfivebooks-v2/order-server
+    newTag: latest
+  - name: ghcr.io/sungw0o/highfivebooks-v2/book-server
+    newTag: latest
+  - name: ghcr.io/sungw0o/highfivebooks-v2/member-server
+    newTag: latest
+  - name: ghcr.io/sungw0o/highfivebooks-v2/coupon-server
+    newTag: latest
+  - name: ghcr.io/sungw0o/highfivebooks-v2/payment-server
+    newTag: latest
+
