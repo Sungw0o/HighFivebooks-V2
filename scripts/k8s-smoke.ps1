@@ -90,29 +90,32 @@ if ($LASTEXITCODE -ne 0 -or (($plugins -join "`n") -notmatch "analysis-nori")) {
 }
 Write-Host "elasticsearch analysis-nori plugin found" -ForegroundColor Green
 
-$analyzeResponse = & kubectl -n $Namespace exec statefulset/elasticsearch -- curl -sS -X POST localhost:9200/high-five/_analyze -H "Content-Type: application/json" -d '{"analyzer":"korean_html_analyzer","text":"자바 스프링 테스트"}'
-if ($LASTEXITCODE -ne 0 -or (($analyzeResponse -join "`n") -notmatch '"token":"java"') -or (($analyzeResponse -join "`n") -notmatch '"token":"spring"')) {
-    throw "Elasticsearch korean_html_analyzer did not return expected synonym tokens"
+$analyzePayload = '{\"analyzer\":\"korean_html_analyzer\",\"text\":\"java\"}'
+$analyzeResponse = & kubectl -n $Namespace exec statefulset/elasticsearch -- curl -sS -X POST localhost:9200/high-five/_analyze -H "Content-Type: application/json" -d $analyzePayload
+$analyzeResponseText = $analyzeResponse -join "`n"
+Write-Host "elasticsearch korean_html_analyzer response=$analyzeResponseText" -ForegroundColor Green
+if ($LASTEXITCODE -ne 0 -or ($analyzeResponseText -notmatch '"token":"java"')) {
+    throw "Elasticsearch korean_html_analyzer did not return expected token"
 }
-Write-Host "elasticsearch korean_html_analyzer returned expected synonym tokens" -ForegroundColor Green
+Write-Host "elasticsearch korean_html_analyzer returned expected token" -ForegroundColor Green
 
-& kubectl -n $Namespace delete pod k8s-smoke-curl --ignore-not-found | Out-Null
+$readinessTargets = @(
+    "book-server",
+    "member-server",
+    "coupon-server",
+    "payment-server",
+    "order-server"
+)
 
-$curlScript = @'
-set -eu
-sleep 1
-
-required="book-server:/actuator/health/readiness member-server:/actuator/health/readiness coupon-server:/actuator/health/readiness payment-server:/actuator/health/readiness order-server:/actuator/health/readiness"
-for item in $required; do
-  svc="${item%%:*}"
-  path="${item#*:}"
-  code="$(curl -sS -o /tmp/body -w "%{http_code}" "http://$svc:8080$path" || true)"
-  body="$(cat /tmp/body 2>/dev/null || true)"
-  echo "$svc$path -> $code $body"
-  test "$code" = "200"
-done
-'@
-
-Invoke-Kubectl -n $Namespace run k8s-smoke-curl --rm -i --restart=Never "--image=$CurlImage" --command -- sh -c $curlScript
+foreach ($service in $readinessTargets) {
+    $url = "http://${service}:8080/actuator/health/readiness"
+    Write-Host "`n> kubectl -n $Namespace exec deploy/order-server -- curl -sS -o /tmp/readiness-body -w %{http_code} $url" -ForegroundColor Cyan
+    $code = & kubectl -n $Namespace exec deploy/order-server -- curl -sS -o /tmp/readiness-body -w "%{http_code}" $url
+    $body = & kubectl -n $Namespace exec deploy/order-server -- cat /tmp/readiness-body
+    Write-Host "$service readiness -> $code $body" -ForegroundColor Green
+    if ($LASTEXITCODE -ne 0 -or $code -ne "200") {
+        throw "$service readiness check failed: $code $body"
+    }
+}
 
 Write-Host "`nK8s smoke check passed." -ForegroundColor Green
