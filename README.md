@@ -2,369 +2,218 @@
 
 # HighFiveBooks V2
 
-**기존 HighFiveBooks MSA를 유지하면서 주문 도메인 안정성과 Kubernetes 전환 근거를 보강한 리팩토링 프로젝트**
+**주문 정합성과 Kubernetes 운영 전환을 중심으로 리팩터링한 MSA 온라인 서점**
 
 ![Java](https://img.shields.io/badge/Java-21-007396?logo=openjdk&logoColor=white)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.7-6DB33F?logo=springboot&logoColor=white)
-![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-native-326CE5?logo=kubernetes&logoColor=white)
-![Portfolio](https://img.shields.io/badge/scope-portfolio-lightgrey)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-kind-326CE5?logo=kubernetes&logoColor=white)
+![Jenkins](https://img.shields.io/badge/Jenkins-CI-D24939?logo=jenkins&logoColor=white)
+![Argo CD](https://img.shields.io/badge/Argo%20CD-GitOps-EF7B4D?logo=argo&logoColor=white)
 
 </div>
 
----
+HighFiveBooks는 도서 검색, 장바구니, 주문, 결제, 쿠폰, 포인트를 제공하는 온라인 서점입니다. V2에서는 첫 MSA 프로젝트에서 겪은 분산 정합성·장애 전파·배포 복잡도를 다시 검토하고, 주문 도메인의 안전성과 Kubernetes 기반 운영 구조를 집중적으로 개선했습니다.
 
-## 목차
+## 핵심 결과
 
-- [프로젝트 소개](#프로젝트-소개)
-- [핵심 리팩토링](#핵심-리팩토링)
-- [기술 스택](#기술-스택)
-- [배포 구조](#배포-구조)
-- [주문 처리 흐름](#주문-처리-흐름)
-- [저장소 구조](#저장소-구조)
-- [로컬 실행](#로컬-실행)
-- [검증](#검증)
-- [Kubernetes 전환](#kubernetes-전환)
-- [문서](#문서)
-- [면접 포인트](#면접-포인트)
+| 영역 | 결과 | 근거 |
+|---|---|---|
+| 도서 조회 | k6 p95 `9,039.51ms → 51.97ms`, 약 174배 개선 | 동일 스크립트의 [baseline](perf/results/book-read-baseline-20260708-234828.json)·[optimized](perf/results/book-read-optimized-20260708-235147.json) 원본 결과 |
+| 주문 정합성 | 재고·포인트를 Try/Confirm/Cancel로 예약하고 실패 시 명시적 보상 | TCC adapter, 주문 서비스, boundary test |
+| 메시지 장애 | 결제 성공 이벤트에 Retry backoff와 DLQ 적용 | RabbitMQ 설정·테스트 |
+| 다중 인스턴스 | Redis ShedLock으로 주문 스케줄러 중복 실행 방지 | scheduler 설정·테스트 |
+| K8s 전환 | kind에서 인프라와 5개 서비스 rollout, Service 연결, readiness 응답 확인 | [2026-07-12 스모크 기록](docs/k8s-smoke-evidence.md) |
+| GitOps | Jenkins가 빌드·테스트·이미지·태그 갱신, Argo CD가 배포 담당 | `Jenkinsfile`, `k8s/gitops` |
 
----
+## V1에서 V2로
 
-## 프로젝트 소개
+| V1 | V2 | 전환 이유 |
+|---|---|---|
+| Eureka | Kubernetes Service DNS | 서비스 발견을 플랫폼 표준 기능으로 통합 |
+| Config Server | ConfigMap·Secret | 별도 설정 서버 의존을 줄이고 배포 선언과 런타임 설정을 함께 관리 |
+| Spring Cloud Gateway | Ingress | 클러스터 진입점과 서비스 라우팅을 Kubernetes 리소스로 표현 |
+| 서비스별 저장소 | 리팩터링 monorepo | 여러 서비스와 인프라 변경을 한 흐름에서 검증하되 독립 실행·배포 경계는 유지 |
+| Thymeleaf 프론트 | React 19·Vite | API 계약 중심의 프론트엔드로 분리하고 사용자 흐름을 재구성 |
+| 수동 배포 중심 | Jenkins CI + Argo CD GitOps | 빌드와 배포 책임을 분리하고 선언된 이미지 변경을 기준으로 배포하기 위해 적용 |
 
-HighFiveBooks는 도서 탐색, 장바구니, 주문, 결제, 쿠폰, 포인트를 포함한 온라인 서점 서비스입니다.
-V2는 기존 팀 프로젝트를 개인 포트폴리오 관점에서 다시 정리한 저장소이며, 단순히 코드를 한 저장소에 모으는 것이 아니라 **MSA 구조를 유지한 채 운영 안정성 이슈를 선별해 리팩토링**하는 데 초점을 두었습니다.
+Kubernetes와 GitOps는 단순히 이력서에 기술을 추가하기 위한 교체가 아니라, V1에서 운영해야 했던 Eureka·Config Server·Gateway 역할을 플랫폼 기능과 선언형 배포로 옮겨 보고 싶어 적용했습니다.
 
-핵심 방향은 다음과 같습니다.
+## 서비스 구조
 
-- `order-server`를 중심으로 주문, 결제, 재고, 쿠폰, 포인트 경계를 정리
-- Eureka, Config Server, Gateway 의존을 Kubernetes Service DNS, ConfigMap/Secret, Ingress로 대체
-- 결제 성공 메시지의 Retry/DLQ, 스케줄러 중복 실행 방지, Feign 장애 격리 정책 보강
-- 기존 Thymeleaf `front_server`는 직접 고치지 않고 React/Vite `apps/storefront`로 대체
+```mermaid
+flowchart TB
+    USER["React Storefront"] --> INGRESS["Kubernetes Ingress"]
+    INGRESS --> ORDER["order-server"]
+    INGRESS --> BOOK["book-server"]
+    INGRESS --> MEMBER["member-server"]
+    INGRESS --> COUPON["coupon-server"]
+    INGRESS --> PAYMENT["payment-server"]
 
-> monorepo는 리팩토링 관리 방식일 뿐이고, 각 도메인 서버는 독립 실행/독립 배포 가능한 MSA로 유지합니다.
+    ORDER -->|"Service DNS / Feign"| BOOK
+    ORDER -->|"Service DNS / Feign"| MEMBER
+    ORDER -->|"Service DNS / Feign"| COUPON
+    ORDER -->|"Service DNS / Feign"| PAYMENT
+    PAYMENT --> RABBIT["RabbitMQ"]
+    RABBIT -->|"결제 성공 이벤트"| ORDER
 
----
+    BOOK --> ES["Elasticsearch"]
+    BOOK --> MINIO["MinIO"]
+    ORDER --> REDIS["Redis / ShedLock"]
+    ORDER --> MYSQL["MySQL"]
+    BOOK --> MYSQL
+    MEMBER --> MYSQL
+    COUPON --> MYSQL
+    PAYMENT --> MYSQL
+```
 
-## 핵심 리팩토링
+## 주요 설계 결정
 
-| 영역 | 개선 내용 |
-|---|---|
-| 주문 트랜잭션 경계 | 외부 Feign/Rabbit I/O와 DB 상태 변경을 분리하고, DB mutation 전담 서비스에 명시적 트랜잭션 적용 |
-| Feign 경계 테스트 | JDK `HttpServer` 기반 boundary test로 request path/header/body와 retry 경계 검증 |
-| RabbitMQ 안정화 | `payment-success-queue`에 Retry backoff와 DLQ를 적용해 poison message 무한 재소비 방지 |
-| Scheduler Lock | Redis 기반 ShedLock으로 order-server replica 2개 이상에서 자동 취소/구매 확정 중복 실행 방지 |
-| Feign 장애 격리 | 기본 retry를 `Retryer.NEVER_RETRY`로 비활성화하고 timeout/CircuitBreaker를 명시 |
-| K8s 전환 | Service DNS, ConfigMap/Secret, Ingress, liveness/readiness probe, smoke script 정리 |
-| Storefront 결제 | Toss Payments client key가 있으면 실제 결제창, 없으면 demo pseudo 결제로 fallback |
+### 1. TCC 기반 분산 트랜잭션 정합성
 
----
+주문 생성 시 재고와 포인트를 먼저 예약(Try)하고 결제 성공 후 확정(Confirm), 주문 실패·취소 시 해제(Cancel)합니다. 첫 MSA에서 XA나 Saga 오케스트레이터까지 한 번에 도입하면 러닝커브와 구현·운영 난도가 크게 높아진다고 판단했습니다. 그래서 각 도메인의 상태 전이를 API로 명확히 표현하고 기존 동기 호출 흐름에 적용하기 쉬운 TCC와 명시적 보상을 선택했습니다.
+
+이 선택은 모든 실패를 자동으로 해결한다는 뜻이 아닙니다. 외부 호출과 로컬 DB 트랜잭션을 분리하고 Feign 암묵적 retry를 끄며, 실패 경로에서 보상 호출을 드러내는 범위까지 구현했습니다. 보상 호출 자체의 실패를 영속화해 재처리하는 구조는 후속 과제입니다.
+
+```mermaid
+sequenceDiagram
+    participant O as order-server
+    participant B as book-server
+    participant M as member-server
+    participant P as payment-server
+
+    O->>B: Try - 재고 선점
+    O->>M: Try - 포인트 예약
+    O->>P: 결제 대기 주문 생성
+    alt 결제 성공
+        O->>B: Confirm - 재고 확정
+        O->>M: Confirm - 포인트 확정
+    else 주문 실패 또는 취소
+        O->>B: Cancel - 재고 해제
+        O->>M: Cancel - 포인트 예약 취소
+    end
+```
+
+### 2. 트랜잭션과 외부 I/O 경계 분리
+
+Feign·RabbitMQ 호출이 DB 트랜잭션을 오래 점유하지 않도록 오케스트레이션과 mutation 서비스를 분리했습니다. DB 상태 변경 메서드만 명시적으로 트랜잭션을 사용하고, 외부 상태 변경 호출은 `Retryer.NEVER_RETRY`, timeout, CircuitBreaker와 도메인 보상 흐름으로 제어합니다.
+
+### 3. 이벤트 실패를 Retry와 DLQ로 격리
+
+결제 성공 리스너가 예외를 삼키지 않도록 하고 제한된 backoff 재시도 후 DLQ로 이동시킵니다. poison message가 같은 큐에서 무한 반복되지 않으며 실패 이벤트를 별도로 확인할 수 있습니다.
+
+### 4. 조회 성능을 원본 결과로 관리
+
+도서 목록과 상세 조회 부하를 동시에 발생시키는 동일 k6 스크립트로 변경 전후를 측정했습니다. 10 VU 목록 조회와 10 VU 상세 조회, `size=1` 조건의 raw JSON을 저장해 개선 수치와 실행 조건을 함께 추적합니다.
+
+## CI/CD와 GitOps
+
+```mermaid
+flowchart LR
+    PUSH["Git Push"] --> JENKINS["Jenkins"]
+    JENKINS --> DETECT["변경 서비스 탐지"]
+    DETECT --> TEST["Maven build·test"]
+    TEST --> IMAGE["GHCR image push"]
+    IMAGE --> TAG["Kustomize image tag commit"]
+    TAG --> ARGO["Argo CD sync"]
+    ARGO --> K8S["Kubernetes"]
+```
+
+- Jenkins는 변경된 서비스의 빌드·테스트, GHCR 이미지 push, `k8s/base/kustomization.yaml` 이미지 태그 갱신을 담당합니다.
+- Argo CD는 Git의 선언 상태를 클러스터에 동기화하며 Jenkins에서 `kubectl apply`를 실행하지 않습니다.
+- `k8s/base`는 현재 검증한 기본 Deployment 구성입니다.
+- `k8s/rollouts`에는 20% → 60초 → 50% → 60초 → 100%의 시간 기반 canary가 있습니다. AnalysisTemplate이나 메트릭 기반 자동 판정은 아직 없으므로 운영 성과로 과장하지 않습니다.
+
+## Kubernetes 검증 상태
+
+2026-07-12 Windows·Docker 27.1.1·kind `highfivebooks` 환경에서 `scripts/k8s-smoke.ps1`을 실행해 다음을 확인했습니다.
+
+- namespace와 MySQL·Redis·RabbitMQ·Elasticsearch·MinIO StatefulSet rollout
+- book·member·coupon·payment·order Deployment rollout
+- 5개 서비스 EndpointSlice 주소와 order-server의 Service DNS 설정
+- order-server의 MySQL·RabbitMQ 연결 로그
+- Elasticsearch Nori 플러그인과 한국어 analyzer 동작
+- 5개 서비스 readiness endpoint HTTP 200
+
+이는 `k8s/base` Deployment의 로컬 kind 스모크 성공 근거입니다. Argo CD 동기화와 Argo Rollouts canary를 운영 클러스터에서 실행했다는 근거와는 구분합니다.
 
 ## 기술 스택
 
 | 영역 | 기술 |
 |---|---|
-| Backend | Java 21, Spring Boot 3.5.7, Spring Cloud OpenFeign, Resilience4j, ShedLock, Spring Data JPA, Spring AMQP |
-| Frontend | React 19, TypeScript 5.7, Vite 6, React Router 7, Tailwind CSS 4, Axios, Framer Motion |
-| Data / Messaging | MySQL 8.4, Redis 7.2, RabbitMQ 3.13, Elasticsearch, MinIO |
-| Infra / DevOps | Docker Compose, Kubernetes, Kustomize, Argo CD, Argo Rollouts, GitHub Actions |
-| Payment | Toss Payments 연동 후보 + demo pseudo payment fallback |
+| Backend | Java 21, Spring Boot 3.5.7, Spring Cloud OpenFeign, Resilience4j, Spring Data JPA |
+| Frontend | React 19, TypeScript, Vite, TanStack Query, Tailwind CSS |
+| Data·Messaging | MySQL 8.4, Redis 7.2, RabbitMQ 3.13, Elasticsearch, MinIO |
+| Infra | Docker Compose, Kubernetes, kind, Kustomize, Nginx Ingress |
+| CI/CD | Jenkins, GHCR, Argo CD, Argo Rollouts |
+| Test | JUnit 5, Mockito, JDK HttpServer boundary test, k6 |
 
----
+## 로컬 실행
 
-## 배포 구조
+### Docker Compose
 
-![HighFiveBooks V2 Architecture](docs/assets/highfivebooks-architecture.svg)
-
-```mermaid
-flowchart TB
-    User["사용자 브라우저"]
-
-    subgraph Client["Client"]
-        Storefront["apps/storefront<br/>React + Vite"]
-    end
-
-    subgraph K8s["Kubernetes namespace: highfivebooks"]
-        Ingress["Ingress<br/>highfivebooks.local"]
-        Config["ConfigMap<br/>runtime env"]
-        Secret["Secret<br/>credentials"]
-
-        subgraph Services["Domain Services"]
-            Order["order-server<br/>Deployment replicas=2<br/>ShedLock enabled"]
-            Book["book-server<br/>Deployment"]
-            Member["member-server<br/>Deployment"]
-            Coupon["coupon-server<br/>Deployment"]
-            Payment["payment-server<br/>Deployment"]
-        end
-
-        subgraph Infra["Stateful Infrastructure"]
-            MySQL[("MySQL<br/>service databases")]
-            Redis[("Redis<br/>ShedLock")]
-            Rabbit[("RabbitMQ<br/>payment-success + DLQ")]
-            ES[("Elasticsearch<br/>book search")]
-            MinIO[("MinIO<br/>book/review images")]
-        end
-    end
-
-    User --> Storefront --> Ingress
-    Ingress --> Order
-    Ingress --> Book
-    Ingress --> Member
-    Ingress --> Coupon
-    Ingress --> Payment
-
-    Config -.envFrom.-> Order
-    Config -.envFrom.-> Book
-    Config -.envFrom.-> Member
-    Config -.envFrom.-> Coupon
-    Config -.envFrom.-> Payment
-    Secret -.envFrom.-> Order
-    Secret -.envFrom.-> Book
-    Secret -.envFrom.-> Member
-    Secret -.envFrom.-> Coupon
-    Secret -.envFrom.-> Payment
-
-    Order -- "Feign / Service DNS" --> Book
-    Order -- "Feign / Service DNS" --> Member
-    Order -- "Feign / Service DNS" --> Coupon
-    Order -- "Feign / Service DNS" --> Payment
-    Payment -- "payment success event" --> Rabbit
-    Rabbit -- "listener retry / DLQ" --> Order
-
-    Order --> MySQL
-    Order --> Redis
-    Book --> MySQL
-    Book --> ES
-    Book --> MinIO
-    Member --> MySQL
-    Coupon --> MySQL
-    Payment --> MySQL
+```powershell
+Copy-Item .env.example .env
+docker compose up -d mysql rabbitmq redis elasticsearch minio
+docker compose --profile apps up -d --build
 ```
 
-### Spring Cloud 대체 매핑
+기본 서비스 포트는 member `9001`, book `9002`, coupon `9004`, payment `9005`, order `9006`입니다.
 
-| 기존 구성 | V2 구성 |
-|---|---|
-| Eureka | Kubernetes Service DNS |
-| Config Server | ConfigMap / Secret |
-| Gateway | Ingress |
-| Thymeleaf `front_server` | React `apps/storefront` |
+### order-server 테스트
 
----
-
-## 주문 처리 흐름
-
-### 주문 생성
-
-```mermaid
-sequenceDiagram
-    participant C as Storefront
-    participant O as order-server
-    participant M as member-server
-    participant B as book-server
-    participant CP as coupon-server
-    participant DB as order DB
-
-    C->>O: POST /api/orders
-    O->>M: 회원 등급 조회
-    O->>B: 도서 정보 조회
-    O->>B: 재고 선점
-    O->>CP: 쿠폰 할인 계산
-    O->>DB: 주문 저장
-    O->>M: 포인트 사용 예약
-    O-->>C: orderKey, totalAmount
+```powershell
+Set-Location services/order-server
+.\mvnw.cmd test
 ```
 
-### 결제 성공 메시지 처리
+### Storefront
 
-```mermaid
-sequenceDiagram
-    participant PG as payment-server / PG
-    participant MQ as RabbitMQ
-    participant O as order-server
-    participant CP as coupon-server
-    participant B as book-server
-    participant M as member-server
-
-    PG->>MQ: payment-success message
-    MQ->>O: consume payment-success-queue
-    O->>O: 주문 상태와 결제 금액 검증
-    O->>CP: 쿠폰 사용 확정
-    O->>B: 재고 차감 확정
-    O->>M: 포인트 사용 확정
-    O->>O: 주문 상태 PREPARING 변경
-    Note over MQ,O: 실패 시 listener retry 후 DLQ 격리
+```powershell
+Set-Location apps/storefront
+npm ci
+npm run dev
 ```
 
----
+`VITE_TOSS_CLIENT_KEY`가 없으면 로컬 확인용 pseudo payment를 사용하고, 키가 있으면 Toss Payments 결제창을 호출합니다.
+
+### Kubernetes 스모크
+
+```powershell
+kubectl apply -k k8s/base
+powershell -ExecutionPolicy Bypass -File .\scripts\k8s-smoke.ps1
+```
+
+전체 재현 순서는 [로컬 재현 문서](docs/LOCAL_REPRODUCIBILITY.md)와 [K8s 전환 runbook](docs/k8s-transition-runbook.md)을 참고합니다.
 
 ## 저장소 구조
 
 ```text
 HighFivebooks-V2/
-  apps/
-    storefront/          React/Vite 사용자 쇼핑몰 프론트
-
-  services/
-    order-server/        메인 리팩토링 대상
-    book-server/         도서, 검색, 재고, 이미지
-    member-server/       회원, 등급, 포인트, 장바구니
-    coupon-server/       쿠폰 계산, 사용, 취소
-    payment-server/      결제 확인, 결제 성공 이벤트
-
-  k8s/
-    base/                Deployment, Service, ConfigMap, Secret, Ingress
-    rollouts/            Argo Rollouts 실험
-    gitops/              Argo CD Application
-
-  docs/                  분석, 근거, runbook 문서
-  scripts/               K8s smoke check
-  docker-compose.yml     로컬 인프라 + apps 프로파일
+├─ apps/storefront/       React 사용자 화면
+├─ services/              5개 도메인 Spring Boot 서비스
+├─ k8s/base/              kind에서 검증한 기본 리소스
+├─ k8s/rollouts/          시간 기반 Argo Rollouts canary
+├─ k8s/gitops/            Argo CD Application
+├─ perf/                  k6 스크립트와 원본 결과
+├─ scripts/               K8s 스모크 자동 점검
+├─ docs/                  설계 근거와 재현 문서
+└─ Jenkinsfile            변경 서비스 기반 CI·이미지·태그 갱신
 ```
 
----
-
-## 로컬 실행
-
-### 환경 변수 준비
-
-```powershell
-copy .env.example .env
-```
-
-### 인프라 실행
-
-```powershell
-docker compose up -d mysql rabbitmq redis elasticsearch minio
-```
-
-| 구성 요소 | 기본 접속 |
-|---|---|
-| MySQL | `localhost:3307` |
-| RabbitMQ | `localhost:5672` |
-| RabbitMQ UI | `http://localhost:15672` |
-| Redis | `localhost:6380` |
-
-### 전체 앱 프로파일 실행
-
-각 서비스 jar 빌드 후 Docker Compose apps 프로파일로 실행합니다.
-
-```powershell
-docker compose --profile apps up -d --build
-```
-
-서비스 포트:
-
-```text
-member-server   9001
-book-server     9002
-coupon-server   9004
-payment-server  9005
-order-server    9006
-```
-
-### Storefront
-
-```powershell
-cd apps/storefront
-npm ci
-npm run dev
-npm run build
-```
-
-주요 환경 변수:
-
-```text
-VITE_API_ADAPTER=mock
-VITE_API_BASE_URL=http://localhost:8080
-VITE_TOSS_CLIENT_KEY=
-```
-
-`VITE_TOSS_CLIENT_KEY`가 비어 있으면 demo pseudo payment로 동작하고, 값이 있으면 Toss Payments 결제창을 호출합니다.
-
----
-
-## 검증
-
-### order-server
-
-```powershell
-cd services/order-server
-.\mvnw.cmd test
-```
-
-현재 기준:
-
-```text
-126 tests, 0 failures, 0 errors, 0 skipped
-```
-
-### K8s manifest
-
-```powershell
-kubectl kustomize k8s/base
-```
-
-### K8s smoke check
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\k8s-smoke.ps1
-```
-
-현재 로컬 환경에서는 Kubernetes context와 kind가 없어 실제 smoke 완료까지는 수행하지 못했고, 그 기록은 `docs/k8s-smoke-evidence.md`에 남겼습니다.
-
-### Storefront
-
-```powershell
-cd apps/storefront
-npm run build
-```
-
-현재 Codex 실행 환경에서는 pnpm의 `esbuild` build script 승인 단계와 권한 제한 때문에 최종 build 검증이 보류되었습니다. 코드 정적 확인과 깨진 문자열 정리는 완료했습니다.
-
----
-
-## Kubernetes 전환
-
-`k8s/base`는 아래 구성 요소를 포함합니다.
-
-- namespace
-- ConfigMap / Secret
-- MySQL, Redis, RabbitMQ, Elasticsearch, MinIO StatefulSet
-- book/member/coupon/payment/order Deployment
-- Service
-- Ingress
-- liveness/readiness probe
-
-order-server는 replica 2개를 기준으로 두고, Redis ShedLock으로 스케줄러 중복 실행을 방어합니다.
-
----
-
-## 문서
+## 근거 문서
 
 | 문서 | 내용 |
 |---|---|
-| [order-flow-boundary-map.md](docs/order-flow-boundary-map.md) | 주문 흐름과 Feign 경계 |
-| [order-resilience-evidence.md](docs/order-resilience-evidence.md) | 트랜잭션, DLQ, ShedLock, Feign 장애 격리 근거 |
-| [k8s-transition-runbook.md](docs/k8s-transition-runbook.md) | K8s 전환 실행 절차 |
-| [k8s-smoke-evidence.md](docs/k8s-smoke-evidence.md) | K8s smoke check 기록 |
-| [runtime-config.md](docs/runtime-config.md) | local/prod 런타임 설정 |
-| [LOCAL_REPRODUCIBILITY.md](docs/LOCAL_REPRODUCIBILITY.md) | 다른 컴퓨터에서 로컬 통합 환경 재현 절차 |
-| [STOREFRONT_API_CONTRACT.md](docs/STOREFRONT_API_CONTRACT.md) | storefront API 계약 |
+| [order-flow-boundary-map.md](docs/order-flow-boundary-map.md) | 주문·결제·재고·포인트 경계 |
+| [order-resilience-evidence.md](docs/order-resilience-evidence.md) | 트랜잭션, DLQ, ShedLock, Feign 정책 |
+| [k8s-smoke-evidence.md](docs/k8s-smoke-evidence.md) | 2026-07-12 kind 실행 근거 |
+| [ARGOCD_ROLLOUTS_RUNBOOK.md](docs/ARGOCD_ROLLOUTS_RUNBOOK.md) | Jenkins·Argo CD·Rollouts 책임과 절차 |
+| [LOCAL_REPRODUCIBILITY.md](docs/LOCAL_REPRODUCIBILITY.md) | 로컬 통합 환경 재현 절차 |
+| [STOREFRONT_API_CONTRACT.md](docs/STOREFRONT_API_CONTRACT.md) | Storefront API 계약 |
 
----
+## 현재 한계
 
-## 면접 포인트
-
-**Q. 왜 MSA를 유지했나요?**
-이 프로젝트의 목적은 기능을 단순히 한 프로세스로 합치는 것이 아니라, 기존 MSA에서 발생할 수 있는 운영 문제를 드러내고 개선하는 것입니다. 모놀리스로 합치면 Feign 장애 격리, 메시지 Retry/DLQ, 분산 보상, 멀티 인스턴스 스케줄러 같은 학습 포인트가 사라지기 때문에 MSA를 유지했습니다.
-
-**Q. 주문 도메인에서 무엇을 개선했나요?**
-주문은 결제, 재고, 쿠폰, 포인트 상태 변경을 조율합니다. 그래서 DB 트랜잭션과 외부 I/O를 분리하고, 상태 변경 Feign 호출의 암묵적 retry를 끄고, 결제 성공 이벤트는 RabbitMQ Retry/DLQ로 격리했습니다. 또한 order-server를 여러 Pod로 배포해도 스케줄러가 중복 실행되지 않도록 Redis ShedLock을 적용했습니다.
-
-**Q. Spring Cloud 구성은 어떻게 바꿨나요?**
-Eureka는 Kubernetes Service DNS, Config Server는 ConfigMap/Secret, Gateway는 Ingress로 대체했습니다. 별도 운영 서버를 줄이고 Kubernetes 표준 리소스로 런타임 설정, 서비스 발견, 라우팅을 구성했습니다.
-
-**Q. 결제 연동은 어떻게 처리했나요?**
-storefront는 `VITE_TOSS_CLIENT_KEY`가 있으면 Toss Payments 결제창을 호출하고, 성공 시 `/payment/success`에서 백엔드 결제 승인 API를 호출합니다. 키가 없으면 로컬 개발을 위해 demo pseudo payment로 fallback합니다.
+- TCC 보상 호출 자체가 실패한 경우를 영속화하고 자동 재처리하는 별도 보상 큐·상태 머신은 없습니다.
+- 현재 로컬 스모크는 기본 Deployment 검증이며, Argo CD sync와 Rollout 승격·중단의 실제 실행 로그는 후속 증거가 필요합니다.
+- canary는 시간 기반 단계 전환이며 Prometheus 지표 기반 자동 분석은 적용하지 않았습니다.
+- Secret 예시는 개발용이므로 실제 환경에서는 External Secrets, Sealed Secrets 또는 클라우드 비밀 관리 서비스가 필요합니다.
