@@ -1,120 +1,87 @@
 # K8s Smoke Evidence
 
-작성일: 2026-07-08
+검증일: 2026-07-12
+
+대상: `k8s/base`
+
+결과: **PASS**
 
 ## 목적
 
-`k8s/base` 매니페스트가 렌더링 가능한지 확인하고, 실제 Kubernetes smoke check를 실행할 때 필요한 조건과 현재 로컬 환경의 막힌 지점을 기록한다.
+HighFiveBooks V2의 기본 Kubernetes 리소스가 단순 렌더링을 넘어 실제 로컬 클러스터에서 기동되고, 서비스 연결과 readiness까지 정상인지 확인합니다.
 
-## 실행 환경 확인
-
-현재 로컬 환경 상태:
+## 실행 환경
 
 ```text
+OS: Windows
+Docker Server: 27.1.1
+Kubernetes context: kind-highfivebooks
+kind cluster: highfivebooks
+Node status: Ready
+```
+
+이번 검증 대상은 `k8s/base`의 일반 Deployment입니다. `k8s/rollouts`의 Argo Rollout이나 Argo CD Application을 실제 동기화한 결과로 해석하지 않습니다.
+
+## 실행 명령
+
+```powershell
 kubectl config current-context
--> error: current-context is not set
-
 kind get clusters
--> kind 명령을 찾을 수 없음
-```
-
-따라서 현재 환경에서는 실제 클러스터 대상 smoke check를 완료할 수 없다.
-
-## Manifest 렌더링 검증
-
-실행:
-
-```powershell
 kubectl kustomize k8s/base
-```
-
-결과: 성공
-
-렌더링 결과에서 확인한 핵심 항목:
-
-- `Namespace/highfivebooks`
-- `ConfigMap/highfivebooks-config`
-- `Secret/highfivebooks-secret` 예시
-- 5개 백엔드 Service: `book-server`, `member-server`, `coupon-server`, `payment-server`, `order-server`
-- 5개 백엔드 Deployment
-- MySQL, Redis, RabbitMQ, Elasticsearch, MinIO StatefulSet
-- Ingress host: `highfivebooks.local`
-- `order-server` replicas: `2`
-- `BOOK_SERVICE_URL=http://book-server:8080`
-- `FEIGN_CONNECT_TIMEOUT_MS=1000`
-- `FEIGN_READ_TIMEOUT_MS=3000`
-- `RABBIT_LISTENER_RETRY_MAX_ATTEMPTS=3`
-- `RABBIT_LISTENER_RETRY_INITIAL_INTERVAL_MS=1000`
-- `RABBIT_LISTENER_RETRY_MULTIPLIER=2.0`
-- `RABBIT_LISTENER_RETRY_MAX_INTERVAL_MS=10000`
-
-## Smoke 스크립트 실행 기록
-
-처음 실행:
-
-```powershell
-.\scripts\k8s-smoke.ps1
-```
-
-결과:
-
-```text
-이 시스템에서 스크립트를 실행할 수 없으므로 scripts\k8s-smoke.ps1 파일을 로드할 수 없습니다.
-```
-
-실행 정책 우회 후 실행:
-
-```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\k8s-smoke.ps1
 ```
 
-스크립트 인자 전달 버그 수정 전 결과:
+## 스모크 결과
 
-```text
-error: unknown command "get namespace highfivebooks" for "kubectl"
-```
+스크립트가 다음 항목을 순서대로 확인했고 마지막에 `K8s smoke check passed.`를 반환했습니다.
 
-조치:
+| 검증 항목 | 결과 |
+|---|---|
+| `highfivebooks` namespace | Active |
+| MySQL StatefulSet | rollout 완료 |
+| Redis StatefulSet | rollout 완료 |
+| RabbitMQ StatefulSet | rollout 완료 |
+| Elasticsearch StatefulSet | rollout 완료 |
+| MinIO StatefulSet | rollout 완료 |
+| book-server Deployment | rollout 완료 |
+| member-server Deployment | rollout 완료 |
+| coupon-server Deployment | rollout 완료 |
+| payment-server Deployment | rollout 완료 |
+| order-server Deployment | rollout 완료 |
+| 5개 백엔드 EndpointSlice | address 존재 |
+| order-server `BOOK_SERVICE_URL` | `http://book-server:8080` |
+| 서비스 DDL 설정 | `update` 확인 |
+| order-server 의존성 연결 | MySQL·RabbitMQ 연결 로그 확인 |
+| Elasticsearch Nori plugin | `analysis-nori` 확인 |
+| 한국어 analyzer | `java`, 동의어 `자바` 토큰 확인 |
+| 5개 서비스 readiness | 모두 HTTP 200 |
 
-- `scripts/k8s-smoke.ps1`의 `Invoke-Kubectl` 인자 이름을 `$Args`에서 `$KubectlArgs`로 변경
-- `Invoke-Kubectl "get", "namespace", $Namespace` 형식 호출을 `Invoke-Kubectl get namespace $Namespace` 형식으로 수정
+## 확인된 범위
 
-수정 후 재실행 결과:
+- Kustomize base 리소스가 kind에 적용 가능한 상태입니다.
+- 5개 상태 저장 인프라와 5개 백엔드 서비스가 rollout을 완료합니다.
+- order-server가 Kubernetes Service DNS 설정으로 book-server를 참조합니다.
+- EndpointSlice가 생성되어 Service 뒤에 실제 Pod 주소가 연결됩니다.
+- order-server가 MySQL과 RabbitMQ에 연결됩니다.
+- book-server 검색에 필요한 Elasticsearch Nori 분석기가 동작합니다.
+- 모든 백엔드 readiness endpoint가 트래픽 수신 가능 상태를 반환합니다.
 
-```text
-> kubectl get namespace highfivebooks
-Unable to connect to the server: dial tcp [::1]:8080: connectex: No connection could be made because the target machine actively refused it.
-kubectl command failed: kubectl get namespace highfivebooks
-```
+## 이 결과로 주장하지 않는 범위
 
-판단:
+- Jenkins 빌드가 GHCR 이미지를 push한 실제 실행 결과
+- Argo CD가 Git 변경을 감지해 클러스터를 동기화한 실제 실행 결과
+- Argo Rollouts가 canary를 20%·50%·100%로 승격한 실제 실행 결과
+- Prometheus 지표에 따라 canary 성공·실패를 자동 판정한 결과
+- 운영 클라우드의 고가용성·장애 복구 수준
 
-- smoke 스크립트는 정상적으로 `kubectl get namespace highfivebooks`까지 진입한다.
-- 실패 원인은 스크립트가 아니라 현재 로컬에 연결된 Kubernetes cluster/context가 없기 때문이다.
+현재 `k8s/rollouts/order-server-rollout.yaml`은 20% → 60초 대기 → 50% → 60초 대기 → 100%로 진행하는 시간 기반 canary입니다. `AnalysisTemplate`이 없으므로 메트릭 기반 자동 canary라고 표현하지 않습니다.
 
-## 실제 성공 캡처 절차
-
-Kubernetes 환경이 준비된 뒤 아래 순서로 재실행한다.
+## 재현 방법
 
 ```powershell
-kubectl config current-context
 kubectl apply -k k8s/base
 kubectl -n highfivebooks get pods
 powershell -ExecutionPolicy Bypass -File .\scripts\k8s-smoke.ps1
 ```
 
-성공 시 캡처할 항목:
-
-- `kubectl -n highfivebooks get pods`
-- `kubectl -n highfivebooks get svc`
-- `kubectl -n highfivebooks rollout status deploy/order-server`
-- `kubectl -n highfivebooks logs deploy/order-server --tail=100`
-- `powershell -ExecutionPolicy Bypass -File .\scripts\k8s-smoke.ps1` 성공 출력
-
-## 포트폴리오 기록 문장
-
-```text
-현재 로컬 머신에는 Kubernetes context와 kind가 없어 실제 smoke 완료까지는 수행하지 못했지만,
-매니페스트 렌더링은 성공했고 smoke 스크립트는 kubectl 실행 단계까지 검증했습니다.
-이후 kind 또는 Docker Desktop Kubernetes 환경에서 같은 스크립트로 rollout, endpoint, Service DNS, RabbitMQ, Redis, readiness를 확인하도록 재현 절차를 남겼습니다.
-```
+재실행 시 날짜, Git commit SHA, Docker·kind·Kubernetes 버전과 전체 터미널 출력을 함께 보관하면 포트폴리오 증거로 더 강하게 사용할 수 있습니다.
