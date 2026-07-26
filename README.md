@@ -210,6 +210,16 @@ HighFivebooks-V2/
 | [ARGOCD_ROLLOUTS_RUNBOOK.md](docs/ARGOCD_ROLLOUTS_RUNBOOK.md) | Jenkins·Argo CD·Rollouts 책임과 절차 |
 | [LOCAL_REPRODUCIBILITY.md](docs/LOCAL_REPRODUCIBILITY.md) | 로컬 통합 환경 재현 절차 |
 | [STOREFRONT_API_CONTRACT.md](docs/STOREFRONT_API_CONTRACT.md) | Storefront API 계약 |
+| [k8s-transition-runbook.md](docs/k8s-transition-runbook.md) | K8s 전환 실행 절차 |
+| [runtime-config.md](docs/runtime-config.md) | local/prod 런타임 설정 |
+| [PERFORMANCE_REPORT.md](docs/PERFORMANCE_REPORT.md) | 도서 조회 k6 성능 측정과 JPA pagination 병목 개선 결과 |
+| [DB_BATCH_TUNING.md](docs/DB_BATCH_TUNING.md) | 생일 쿠폰 발급 배치 병목 분석과 개선 방향 |
+| [PERFORMANCE_TEST_PROGRESS_2026-07-09.md](docs/PERFORMANCE_TEST_PROGRESS_2026-07-09.md) | 주문 생성 API, RabbitMQ DLQ, 주문 목록 테스트 진행 기록 |
+| [PORTFOLIO_PERFORMANCE_CASES.md](docs/PORTFOLIO_PERFORMANCE_CASES.md) | 백엔드 5개, 클라우드/인프라 5개 포트폴리오 사례 카드 |
+| [CLOUD_PORTFOLIO_SECTION.md](docs/CLOUD_PORTFOLIO_SECTION.md) | 클라우드/인프라 포트폴리오 반영 문단과 이력서 bullet |
+| [AWS_EKS_ONE_WEEK_OPERATION_PLAN.md](docs/AWS_EKS_ONE_WEEK_OPERATION_PLAN.md) | AWS EKS 1주 운영 전환 계획과 증거 캡처 체크리스트 |
+| [AWS_EKS_TROUBLESHOOTING_EVIDENCE.md](docs/AWS_EKS_TROUBLESHOOTING_EVIDENCE.md) | EKS 노드와 EBS CSI 장애 해결, gp3 동적 프로비저닝 전후 측정 |
+| [HIGHFIVEBOOKS_CHECKLIST_GAP_AUDIT.md](docs/HIGHFIVEBOOKS_CHECKLIST_GAP_AUDIT.md) | 취업 체크리스트 기준 적용 현황과 남은 보강 항목 |
 
 ## 현재 한계
 
