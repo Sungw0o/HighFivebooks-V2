@@ -19,13 +19,13 @@ variable "kubernetes_version" {
 variable "node_instance_types" {
   description = "Small worker node instance types for evidence capture."
   type        = list(string)
-  default     = ["t3.medium"]
+  default     = ["t3.small"]
 }
 
 variable "node_desired_size" {
   description = "Desired worker node count. Keep this small for cost control."
   type        = number
-  default     = 1
+  default     = 2
 }
 
 variable "node_min_size" {

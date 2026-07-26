@@ -19,3 +19,8 @@ output "update_kubeconfig_command" {
   description = "Command to configure kubectl for the ephemeral cluster."
   value       = "aws eks update-kubeconfig --region ${var.aws_region} --name ${aws_eks_cluster.this.name}"
 }
+
+output "ebs_csi_role_arn" {
+  description = "IAM role used by the EBS CSI controller through EKS Pod Identity."
+  value       = aws_iam_role.ebs_csi.arn
+}

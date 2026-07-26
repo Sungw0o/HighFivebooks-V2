@@ -20,7 +20,7 @@ resource "aws_eks_cluster" "this" {
 
 resource "aws_eks_node_group" "default" {
   cluster_name    = aws_eks_cluster.this.name
-  node_group_name = "${var.cluster_name}-default"
+  node_group_name = "${var.cluster_name}-workers"
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = aws_subnet.public[*].id
   instance_types  = var.node_instance_types
@@ -40,6 +40,6 @@ resource "aws_eks_node_group" "default" {
   ]
 
   tags = {
-    Name = "${var.cluster_name}-default"
+    Name = "${var.cluster_name}-workers"
   }
 }

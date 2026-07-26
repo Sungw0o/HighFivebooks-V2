@@ -1,0 +1,75 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - storageclass.yaml
+
+patches:
+  - path: delete-example-secret.yaml
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+  - target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 768Mi
+  - target:
+      group: argoproj.io
+      version: v1alpha1
+      kind: Rollout
+      name: order-server
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: add
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+images:
+  - name: ghcr.io/sungw0o/highfivebooks-v2/order-server
+    newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/order-server
+    newTag: latest
+  - name: ghcr.io/sungw0o/highfivebooks-v2/book-server
+    newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/book-server
+    newTag: latest
+  - name: ghcr.io/sungw0o/highfivebooks-v2/member-server
+    newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/member-server
+    newTag: latest
+  - name: ghcr.io/sungw0o/highfivebooks-v2/coupon-server
+    newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/coupon-server
+    newTag: latest
+  - name: ghcr.io/sungw0o/highfivebooks-v2/payment-server
+    newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/payment-server
+    newTag: latest
+  - name: ghcr.io/sungw0o/highfivebooks-v2/elasticsearch-nori
+    newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/elasticsearch-nori
+    newTag: 8.18.8
