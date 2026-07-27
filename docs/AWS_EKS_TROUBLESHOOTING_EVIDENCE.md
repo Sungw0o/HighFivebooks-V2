@@ -106,23 +106,118 @@ Terraform: No changes. Your infrastructure matches the configuration.
 Terraform manages the EKS cluster, worker group, ECR repositories, IAM roles,
 Pod Identity association, EBS CSI add-on, VPC, subnets, and route resources.
 
-## 5. Portfolio-ready summary
+## 5. Worker memory and EBS availability-zone scheduling
+
+### Problem
+
+The full MSA did not fit on the initial small worker configurations:
+
+- 2 workers: `Too many pods` and `Insufficient memory`
+- 3 workers: a worker became `NotReady`
+- EC2 console output showed Java processes using about 484-505 MiB RSS before
+  repeated OOM kills
+- The node reported `Kubelet stopped posting node status`
+- EC2 system and instance status checks remained `ok`
+
+Increasing the group to 4 workers provided enough aggregate memory, but the
+Elasticsearch PVC was fixed to `ap-northeast-2b`. Both workers in that
+availability zone were already at 78-80% requested memory, so Elasticsearch
+remained Pending with `0/4 nodes are available: 4 Insufficient memory`.
+
+### Decision
+
+- Keep the Free Tier eligible `t3.small` type.
+- Set backend memory requests to 512 MiB and limits to 640 MiB based on the
+  observed Java RSS.
+- Spread backend pods by hostname.
+- Use six workers so the two availability zones each receive three nodes.
+- Use `Recreate` for single-replica Deployments and
+  `maxSurge: 0`/`maxUnavailable: 1` for the order Rollout to avoid temporary
+  double allocation during updates.
+
+### Result
+
+- Failed `t3.medium` group imported into Terraform state before replacement
+- `t3.small` 4-worker group replacement: 1 minute 49 seconds
+- Scale from 4 to 6 workers:
+  - Terraform apply: 10.00 seconds
+  - Six Ready nodes: 34.20 seconds after apply
+- Final zone distribution:
+  - `ap-northeast-2a`: 3 nodes
+  - `ap-northeast-2b`: 3 nodes
+- Final node health: 6/6 Ready, 0 NotReady
+
+## 6. Elasticsearch EBS permission and memory recovery
+
+### Problem
+
+After EBS reattachment, Elasticsearch failed to create
+`/usr/share/elasticsearch/data/node.lock` with `AccessDeniedException`.
+After fixing ownership, the 768 MiB container limit was still insufficient and
+the pod was OOMKilled during startup.
+
+### Decision
+
+- Apply pod `fsGroup: 1000` with `OnRootMismatch`.
+- Reduce Elasticsearch heap from 512 MiB to 384 MiB.
+- Reserve 768 MiB and set the container limit to 1 GiB.
+
+### Result
+
+- EBS data path became writable without recreating the PVC.
+- Elasticsearch became Ready in 149.05 seconds.
+- Final restart count: 0.
+
+## 7. Secret precedence and application startup
+
+### Problem
+
+The Kubernetes Secret had been created from the entire local `.env`. Because
+the Secret was loaded after the ConfigMap, local Docker values overrode
+Kubernetes service discovery values. All five services timed out while
+connecting to MySQL. The member health endpoint also returned 503 because the
+deferred Gmail credentials made `MailHealthIndicator` report DOWN.
+
+### Decision
+
+- Rebuild the cluster Secret in memory with only the 30 keys defined by
+  `secret.example.yaml`.
+- Keep hosts, ports, database names, and service URLs only in the ConfigMap.
+- Add a five-minute startup probe for slow Spring Boot cold starts.
+- Disable only the mail health indicator while email authentication is
+  intentionally deferred.
+
+### Result
+
+- Secret/ConfigMap overlapping keys: multiple local overrides -> 0
+- Backend cold-start times:
+  - payment-server: 65.06 seconds
+  - coupon-server: 71.60 seconds
+  - member-server: 78.69 seconds
+  - book-server: 102.03 seconds
+  - order-server: 96.29 seconds; Ready in 110.97 seconds
+- Final backend restarts: 0
+- Internal `/actuator/health`: 5/5 HTTP 200
+- Final namespace state: 10/10 application and infrastructure pods Ready
+
+## 8. Portfolio-ready summary
 
 While moving HighFiveBooks to EKS, a Free Tier restriction blocked the original
-`t3.medium` managed node group. After comparing eligible instance types,
-`t3.small` was selected to preserve x86 compatibility, and two workers were
-made Ready with 3860m allocatable CPU and 2,935,520Ki memory. During EBS
-integration, an incorrect Terraform dependency caused both EBS controller pods
-to remain at `1/6 CrashLoopBackOff`. The dependency was corrected so Pod
-Identity and least-privilege IAM were available first, then only the controller
-was restarted. It recovered to `6/6 Running` in 20.57 seconds, and a 1 GiB gp3
-PVC was dynamically provisioned and mounted in 12.33 seconds. A final Terraform
-plan reported zero drift.
+`t3.medium` managed node group, so Free Tier eligible `t3.small` workers were
+used. Two and three workers failed from pod density and memory pressure, while
+four workers still could not place an EBS-bound Elasticsearch pod in its
+availability zone. Memory requests were corrected from observed 484-505 MiB
+Java RSS, pods were spread across hosts, and the group was scaled to six nodes
+across two zones. All nodes became Ready in 34.20 seconds. EBS CSI Pod Identity
+recovered its controller to `6/6 Running` in 20.57 seconds, and a 1 GiB gp3 PVC
+was provisioned and mounted in 12.33 seconds. Elasticsearch EBS permissions and
+memory were then tuned, and local `.env` values were removed from the
+Kubernetes Secret so ConfigMap service discovery could take effect. The final
+result was 10/10 Ready pods, zero restarts, and HTTP 200 health responses from
+all five backend services.
 
 ## Next measurements
 
-- Build and push the six application/infrastructure images to ECR.
-- Deploy the AWS Kustomize overlay and measure pod startup/readiness.
 - Compare local and EKS k6 p95, failure rate, and throughput.
 - Install metrics-server and verify HPA scale-out time.
 - Add ALB Ingress and measure external request latency.
