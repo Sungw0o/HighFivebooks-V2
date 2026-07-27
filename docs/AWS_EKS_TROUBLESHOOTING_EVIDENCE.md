@@ -216,9 +216,42 @@ Kubernetes Secret so ConfigMap service discovery could take effect. The final
 result was 10/10 Ready pods, zero restarts, and HTTP 200 health responses from
 all five backend services.
 
+## 9. Internet-facing ALB Ingress
+
+### Problem
+
+The Kubernetes Ingress still referenced the local `nginx` class and
+`highfivebooks.local`. No Ingress controller was installed, so the resource
+had no external address and the EKS services could not be reached outside the
+cluster. The local Ingress also exposed `/internal/point-transactions`, which
+must not become a public ALB route.
+
+### Decision
+
+- Install AWS Load Balancer Controller with Helm chart `1.14.0`.
+- Use a controller-only IAM policy and EKS Pod Identity instead of granting
+  ELB permissions to every worker node.
+- Reuse the two public subnets tagged with
+  `kubernetes.io/role/elb=1`.
+- Route directly to Pod IPs with `alb.ingress.kubernetes.io/target-type: ip`.
+- Use `/actuator/health` for all target group health checks.
+- Remove the local hostname and internal point transaction route from the AWS
+  overlay.
+
+### Result
+
+- Terraform: 4 IAM and Pod Identity resources added, 0 changed, 0 destroyed
+- Helm controller installation: approximately 23 seconds
+- ALB state: `active`, `internet-facing`, `application`
+- Target groups: 5/5 healthy
+- External `GET /api/books`: HTTP 200, 229-byte response
+- Target health and external request verification: approximately 148 seconds
+- Internal point transaction route: not present on the public ALB
+
 ## Next measurements
 
 - Compare local and EKS k6 p95, failure rate, and throughput.
 - Install metrics-server and verify HPA scale-out time.
-- Add ALB Ingress and measure external request latency.
+- Measure ALB request latency with the same k6 scenario used locally.
+- Add ACM TLS and DNS after selecting the final public domain.
 - Capture CloudWatch control-plane and workload evidence.

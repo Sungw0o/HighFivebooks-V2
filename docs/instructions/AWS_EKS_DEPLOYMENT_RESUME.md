@@ -30,6 +30,10 @@
 - 백엔드 `/actuator/health`: 5/5 HTTP 200
 - 현재 Pod 재시작 합계: 0
 - Terraform state에 노드 그룹 import 및 교체 결과가 반영됐다.
+- AWS Load Balancer Controller: Helm chart `1.14.0`, 1/1 Ready
+- ALB: internet-facing, active
+- ALB Target Group: 5/5 healthy
+- 외부 `GET /api/books`: HTTP 200
 
 ## 재개 전 확인
 
@@ -109,10 +113,41 @@ kubectl logs -n highfivebooks <pod-name> --previous --tail=100
 
 초기 실패 때는 Secret에 포함된 로컬 Docker 포트와 호스트가 ConfigMap을 덮어써 MySQL 연결 타임아웃과 JDBC 메타데이터 조회 실패가 발생했다. Secret은 `secret.example.yaml`에 정의된 민감 키만 포함해야 한다.
 
+## ALB Ingress
+
+컨트롤러 IAM 권한과 Pod Identity는 Terraform이 관리한다.
+
+```powershell
+cd C:\Users\성우\Desktop\HighFivebooks-V2\infra\aws\ephemeral-eks
+terraform apply
+
+cd C:\Users\성우\Desktop\HighFivebooks-V2
+.\scripts\install-aws-load-balancer-controller.ps1
+kubectl apply -k k8s/overlays/aws
+```
+
+ALB 주소와 상태를 확인한다.
+
+```powershell
+kubectl get ingress highfivebooks-api -n highfivebooks -o wide
+
+$albHost = kubectl get ingress highfivebooks-api `
+  -n highfivebooks `
+  -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+
+Invoke-WebRequest "http://$albHost/api/books" -UseBasicParsing
+```
+
+AWS 오버레이는 로컬 전용 호스트를 제거하고 `alb` IngressClass, IP
+target, `/actuator/health` 검사를 적용한다. 내부 API인
+`/internal/point-transactions`는 외부 ALB 경로에서 제외한다.
+
 ## 비용 정리
 
 - 전체 검증 중: `t3.small` 6대
 - 유휴 상태: desired size 1
+- ALB는 트래픽이 없어도 시간당 비용이 발생한다.
+- Terraform destroy 전 `.\scripts\remove-aws-load-balancer-controller.ps1`을 실행해 ALB와 컨트롤러가 만든 보안 그룹을 먼저 삭제한다.
 - 작업 종료: Terraform으로 전체 AWS 임시 환경 제거
 - 예산 알림: `HighFiveBooks-EKS-Weekly-Guardrail`, 월 80 USD, 실제 지출 70% 알림
 
@@ -133,3 +168,4 @@ kubectl logs -n highfivebooks <pod-name> --previous --tail=100
 - Elasticsearch 조정 후 Ready: 149.05초
 - 백엔드 기동 시간: 65.06~102.03초
 - 최종 결과: 노드 6/6 Ready, Pod 10/10 Ready, health 5/5 HTTP 200, 재시작 0회
+- ALB 결과: 5/5 Target Group healthy, 외부 도서 API HTTP 200
