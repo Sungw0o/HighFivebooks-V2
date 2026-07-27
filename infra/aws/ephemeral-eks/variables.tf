@@ -17,7 +17,7 @@ variable "kubernetes_version" {
 }
 
 variable "node_instance_types" {
-  description = "Small worker node instance types for evidence capture."
+  description = "Free Tier eligible worker node instance types for the full MSA workload."
   type        = list(string)
   default     = ["t3.small"]
 }
@@ -25,7 +25,7 @@ variable "node_instance_types" {
 variable "node_desired_size" {
   description = "Desired worker node count. Keep this small for cost control."
   type        = number
-  default     = 2
+  default     = 6
 }
 
 variable "node_min_size" {
@@ -37,7 +37,7 @@ variable "node_min_size" {
 variable "node_max_size" {
   description = "Maximum worker node count."
   type        = number
-  default     = 2
+  default     = 6
 }
 
 variable "force_delete_ecr" {
