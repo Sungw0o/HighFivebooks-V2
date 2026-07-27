@@ -8,6 +8,42 @@ resources:
 patches:
   - path: delete-example-secret.yaml
   - target:
+      group: networking.k8s.io
+      version: v1
+      kind: Ingress
+      name: highfivebooks-api
+    patch: |-
+      - op: remove
+        path: /metadata/annotations/nginx.ingress.kubernetes.io~1proxy-body-size
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1scheme
+        value: internet-facing
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1target-type
+        value: ip
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1listen-ports
+        value: '[{"HTTP":80}]'
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1healthcheck-path
+        value: /actuator/health
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1healthcheck-protocol
+        value: HTTP
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1success-codes
+        value: '200'
+      - op: add
+        path: /metadata/annotations/alb.ingress.kubernetes.io~1tags
+        value: Project=HighFiveBooks-V2,Purpose=portfolio-ephemeral-evidence
+      - op: replace
+        path: /spec/ingressClassName
+        value: alb
+      - op: remove
+        path: /spec/rules/0/host
+      - op: remove
+        path: /spec/rules/0/http/paths/6
+  - target:
       group: apps
       version: v1
       kind: Deployment
