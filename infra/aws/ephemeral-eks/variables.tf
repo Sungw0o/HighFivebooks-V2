@@ -25,7 +25,7 @@ variable "node_instance_types" {
 variable "node_desired_size" {
   description = "Desired worker node count for the MSA workloads."
   type        = number
-  default     = 7
+  default     = 6
 }
 
 variable "node_min_size" {
@@ -37,11 +37,17 @@ variable "node_min_size" {
 variable "node_max_size" {
   description = "Maximum worker node count."
   type        = number
-  default     = 7
+  default     = 6
 }
 
 variable "ci_node_instance_types" {
   description = "Instance types for the isolated Jenkins build agent node group."
+  type        = list(string)
+  default     = ["t3.small"]
+}
+
+variable "search_node_instance_types" {
+  description = "Instance types for the isolated Elasticsearch node group."
   type        = list(string)
   default     = ["t3.small"]
 }

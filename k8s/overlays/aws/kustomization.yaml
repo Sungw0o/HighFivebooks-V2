@@ -133,6 +133,22 @@ patches:
     version: v1
 - patch: |-
     - op: replace
+      path: /spec/template/spec/nodeSelector/workload
+      value: search
+    - op: add
+      path: /spec/template/spec/tolerations
+      value:
+        - key: dedicated
+          operator: Equal
+          value: search
+          effect: NoSchedule
+  target:
+    group: apps
+    kind: StatefulSet
+    name: elasticsearch
+    version: v1
+- patch: |-
+    - op: replace
       path: /spec/replicas
       value: 2
     - op: add

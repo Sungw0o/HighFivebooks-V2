@@ -83,3 +83,39 @@ resource "aws_eks_node_group" "ci" {
     Name = "${var.cluster_name}-ci"
   }
 }
+
+resource "aws_eks_node_group" "search" {
+  cluster_name    = aws_eks_cluster.this.name
+  node_group_name = "${var.cluster_name}-search"
+  node_role_arn   = aws_iam_role.node.arn
+  subnet_ids      = [aws_subnet.public[1].id]
+  instance_types  = var.search_node_instance_types
+
+  scaling_config {
+    desired_size = 1
+    min_size     = 1
+    max_size     = 1
+  }
+
+  update_config {
+    max_unavailable = 1
+  }
+
+  labels = {
+    workload = "search"
+  }
+
+  taint {
+    key    = "dedicated"
+    value  = "search"
+    effect = "NO_SCHEDULE"
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.node
+  ]
+
+  tags = {
+    Name = "${var.cluster_name}-search"
+  }
+}
