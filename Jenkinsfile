@@ -65,6 +65,14 @@ spec:
     githubPush()
   }
 
+  parameters {
+    booleanParam(
+      name: 'FORCE_BUILD_ALL',
+      defaultValue: false,
+      description: '변경 감지와 관계없이 모든 백엔드 서비스를 빌드하고 배포합니다'
+    )
+  }
+
   environment {
     AWS_ACCOUNT_ID = '756090160762'
     AWS_REGION = 'ap-northeast-2'
@@ -109,6 +117,12 @@ spec:
             env.SERVICES = ''
             currentBuild.result = 'NOT_BUILT'
             echo 'Skipping the Jenkins image-tag commit.'
+            return
+          }
+
+          if (params.FORCE_BUILD_ALL) {
+            env.SERVICES = allServices.join(',')
+            echo "Forced full build: ${env.SERVICES}"
             return
           }
 
