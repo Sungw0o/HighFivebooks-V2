@@ -99,17 +99,23 @@ spec:
     stage('Detect changed services') {
       steps {
         script {
-          def allServices = ['order', 'book', 'member', 'coupon', 'payment']
-          def changedFiles = []
+            def allServices = ['order', 'book', 'member', 'coupon', 'payment']
+            def changedFiles = []
+            def previousCommit = env.GIT_PREVIOUS_COMMIT?.trim()
 
-          try {
-            changedFiles = sh(
-              returnStdout: true,
-              script: 'git diff --name-only HEAD~1 HEAD'
-            ).readLines().collect { it.trim() }.findAll { it }
-          } catch (ignored) {
-            echo 'Could not detect the previous revision; building every service.'
-          }
+            if (!(previousCommit ==~ /[0-9a-fA-F]{7,40}/)) {
+              previousCommit = 'HEAD~1'
+            }
+
+            try {
+              changedFiles = sh(
+                returnStdout: true,
+                script: "git diff --name-only ${previousCommit} HEAD"
+              ).readLines().collect { it.trim() }.findAll { it }
+              echo "Changed-file range: ${previousCommit}..HEAD"
+            } catch (ignored) {
+              echo 'Could not detect the previous revision; building every service.'
+            }
 
           def author = sh(returnStdout: true, script: 'git log -1 --pretty=%an').trim()
           def manifestOnly = changedFiles &&
