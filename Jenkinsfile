@@ -17,10 +17,13 @@ spec:
       image: maven:3.9.11-eclipse-temurin-21
       command: ["sleep"]
       args: ["99d"]
+      env:
+        - name: MAVEN_OPTS
+          value: "-Xmx256m -XX:MaxMetaspaceSize=192m"
       resources:
         requests:
           cpu: 250m
-          memory: 256Mi
+          memory: 512Mi
         limits:
           cpu: "1"
           memory: 1Gi
@@ -153,7 +156,7 @@ spec:
         script {
           for (svc in env.SERVICES.split(',')) {
             dir("services/${svc}-server") {
-              sh 'mvn -B clean package'
+              sh 'mvn -B -DargLine=-Xmx384m clean package'
             }
           }
         }
