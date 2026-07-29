@@ -2,186 +2,186 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ../../base
-  - storageclass.yaml
+- ../../base
+- storageclass.yaml
 
 patches:
-  - path: delete-example-secret.yaml
-  - target:
-      group: networking.k8s.io
-      version: v1
-      kind: Ingress
-      name: highfivebooks-api
-    patch: |-
-      - op: remove
-        path: /metadata/annotations/nginx.ingress.kubernetes.io~1proxy-body-size
-      - op: add
-        path: /metadata/annotations/alb.ingress.kubernetes.io~1scheme
-        value: internet-facing
-      - op: add
-        path: /metadata/annotations/alb.ingress.kubernetes.io~1target-type
-        value: ip
-      - op: add
-        path: /metadata/annotations/alb.ingress.kubernetes.io~1listen-ports
-        value: '[{"HTTP":80}]'
-      - op: add
-        path: /metadata/annotations/alb.ingress.kubernetes.io~1healthcheck-path
-        value: /actuator/health
-      - op: add
-        path: /metadata/annotations/alb.ingress.kubernetes.io~1healthcheck-protocol
-        value: HTTP
-      - op: add
-        path: /metadata/annotations/alb.ingress.kubernetes.io~1success-codes
-        value: '200'
-      - op: add
-        path: /metadata/annotations/alb.ingress.kubernetes.io~1tags
-        value: Project=HighFiveBooks-V2,Purpose=portfolio-ephemeral-evidence
-      - op: replace
-        path: /spec/ingressClassName
-        value: alb
-      - op: remove
-        path: /spec/rules/0/host
-      - op: remove
-        path: /spec/rules/0/http/paths/6
-  - target:
-      group: apps
-      version: v1
-      kind: Deployment
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 2
-      - op: add
-        path: /spec/strategy
-        value:
-          type: RollingUpdate
-          rollingUpdate:
-            maxSurge: 1
-            maxUnavailable: 0
-      - op: add
-        path: /spec/template/spec/containers/0/resources
-        value:
-          requests:
-            cpu: 100m
-            memory: 256Mi
-          limits:
-            cpu: 500m
-            memory: 640Mi
-      - op: add
-        path: /spec/template/spec/containers/0/startupProbe
-        value:
-          tcpSocket:
-            port: http
-          periodSeconds: 10
-          timeoutSeconds: 3
-          failureThreshold: 30
-      - op: add
-        path: /spec/template/metadata/labels/tier
-        value: backend
-      - op: add
-        path: /spec/template/spec/topologySpreadConstraints
-        value:
-          - maxSkew: 1
-            topologyKey: kubernetes.io/hostname
-            whenUnsatisfiable: DoNotSchedule
-            labelSelector:
-              matchLabels:
-                tier: backend
-  - target:
-      group: apps
-      version: v1
-      kind: StatefulSet
-    patch: |-
-      - op: add
-        path: /spec/template/spec/containers/0/resources
-        value:
-          requests:
-            cpu: 50m
-            memory: 256Mi
-          limits:
-            cpu: 500m
-            memory: 768Mi
-  - target:
-      group: apps
-      version: v1
-      kind: StatefulSet
-      name: elasticsearch
-    patch: |-
-      - op: add
-        path: /spec/template/spec/securityContext
-        value:
-          fsGroup: 1000
-          fsGroupChangePolicy: OnRootMismatch
-      - op: replace
-        path: /spec/template/spec/containers/0/env/2/value
-        value: -Xms384m -Xmx384m
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/requests/memory
-        value: 768Mi
-      - op: replace
-        path: /spec/template/spec/containers/0/resources/limits/memory
-        value: 1Gi
-  - target:
-      group: argoproj.io
-      version: v1alpha1
-      kind: Rollout
-      name: order-server
-    patch: |-
-      - op: replace
-        path: /spec/replicas
-        value: 2
-      - op: add
-        path: /spec/strategy/canary/maxSurge
-        value: 1
-      - op: add
-        path: /spec/strategy/canary/maxUnavailable
-        value: 0
-      - op: add
-        path: /spec/template/spec/containers/0/resources
-        value:
-          requests:
-            cpu: 100m
-            memory: 256Mi
-          limits:
-            cpu: 500m
-            memory: 640Mi
-      - op: add
-        path: /spec/template/spec/containers/0/startupProbe
-        value:
-          tcpSocket:
-            port: http
-          periodSeconds: 10
-          timeoutSeconds: 3
-          failureThreshold: 30
-      - op: add
-        path: /spec/template/metadata/labels/tier
-        value: backend
-      - op: add
-        path: /spec/template/spec/topologySpreadConstraints
-        value:
-          - maxSkew: 1
-            topologyKey: kubernetes.io/hostname
-            whenUnsatisfiable: DoNotSchedule
-            labelSelector:
-              matchLabels:
-                tier: backend
+- path: delete-example-secret.yaml
+- patch: |-
+    - op: remove
+      path: /metadata/annotations/nginx.ingress.kubernetes.io~1proxy-body-size
+    - op: add
+      path: /metadata/annotations/alb.ingress.kubernetes.io~1scheme
+      value: internet-facing
+    - op: add
+      path: /metadata/annotations/alb.ingress.kubernetes.io~1target-type
+      value: ip
+    - op: add
+      path: /metadata/annotations/alb.ingress.kubernetes.io~1listen-ports
+      value: '[{"HTTP":80}]'
+    - op: add
+      path: /metadata/annotations/alb.ingress.kubernetes.io~1healthcheck-path
+      value: /actuator/health
+    - op: add
+      path: /metadata/annotations/alb.ingress.kubernetes.io~1healthcheck-protocol
+      value: HTTP
+    - op: add
+      path: /metadata/annotations/alb.ingress.kubernetes.io~1success-codes
+      value: '200'
+    - op: add
+      path: /metadata/annotations/alb.ingress.kubernetes.io~1tags
+      value: Project=HighFiveBooks-V2,Purpose=portfolio-ephemeral-evidence
+    - op: replace
+      path: /spec/ingressClassName
+      value: alb
+    - op: remove
+      path: /spec/rules/0/host
+    - op: remove
+      path: /spec/rules/0/http/paths/6
+  target:
+    group: networking.k8s.io
+    kind: Ingress
+    name: highfivebooks-api
+    version: v1
+- patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 2
+    - op: add
+      path: /spec/strategy
+      value:
+        type: RollingUpdate
+        rollingUpdate:
+          maxSurge: 1
+          maxUnavailable: 0
+    - op: add
+      path: /spec/template/spec/containers/0/resources
+      value:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 640Mi
+    - op: add
+      path: /spec/template/spec/containers/0/startupProbe
+      value:
+        tcpSocket:
+          port: http
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 30
+    - op: add
+      path: /spec/template/metadata/labels/tier
+      value: backend
+    - op: add
+      path: /spec/template/spec/topologySpreadConstraints
+      value:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              tier: backend
+  target:
+    group: apps
+    kind: Deployment
+    version: v1
+- patch: |-
+    - op: add
+      path: /spec/template/spec/containers/0/resources
+      value:
+        requests:
+          cpu: 50m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 768Mi
+  target:
+    group: apps
+    kind: StatefulSet
+    version: v1
+- patch: |-
+    - op: add
+      path: /spec/template/spec/securityContext
+      value:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+    - op: replace
+      path: /spec/template/spec/containers/0/env/2/value
+      value: -Xms384m -Xmx384m
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/requests/memory
+      value: 768Mi
+    - op: replace
+      path: /spec/template/spec/containers/0/resources/limits/memory
+      value: 1Gi
+  target:
+    group: apps
+    kind: StatefulSet
+    name: elasticsearch
+    version: v1
+- patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 2
+    - op: add
+      path: /spec/strategy/canary/maxSurge
+      value: 1
+    - op: add
+      path: /spec/strategy/canary/maxUnavailable
+      value: 0
+    - op: add
+      path: /spec/template/spec/containers/0/resources
+      value:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 640Mi
+    - op: add
+      path: /spec/template/spec/containers/0/startupProbe
+      value:
+        tcpSocket:
+          port: http
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 30
+    - op: add
+      path: /spec/template/metadata/labels/tier
+      value: backend
+    - op: add
+      path: /spec/template/spec/topologySpreadConstraints
+      value:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              tier: backend
+  target:
+    group: argoproj.io
+    kind: Rollout
+    name: order-server
+    version: v1alpha1
 
 images:
-  - name: ghcr.io/sungw0o/highfivebooks-v2/order-server
-    newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/order-server
-    newTag: latest
-  - name: ghcr.io/sungw0o/highfivebooks-v2/book-server
-    newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/book-server
-    newTag: latest
-  - name: ghcr.io/sungw0o/highfivebooks-v2/member-server
-    newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/member-server
-    newTag: latest
-  - name: ghcr.io/sungw0o/highfivebooks-v2/coupon-server
-    newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/coupon-server
-    newTag: latest
-  - name: ghcr.io/sungw0o/highfivebooks-v2/payment-server
-    newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/payment-server
-    newTag: latest
-  - name: ghcr.io/sungw0o/highfivebooks-v2/elasticsearch-nori
-    newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/elasticsearch-nori
-    newTag: 8.18.8
+- name: ghcr.io/sungw0o/highfivebooks-v2/book-server
+  newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/book-server
+  newTag: dce70ad
+- name: ghcr.io/sungw0o/highfivebooks-v2/coupon-server
+  newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/coupon-server
+  newTag: dce70ad
+- name: ghcr.io/sungw0o/highfivebooks-v2/elasticsearch-nori
+  newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/elasticsearch-nori
+  newTag: 8.18.8
+- name: ghcr.io/sungw0o/highfivebooks-v2/member-server
+  newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/member-server
+  newTag: dce70ad
+- name: ghcr.io/sungw0o/highfivebooks-v2/order-server
+  newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/order-server
+  newTag: dce70ad
+- name: ghcr.io/sungw0o/highfivebooks-v2/payment-server
+  newName: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com/highfivebooks-v2/payment-server
+  newTag: dce70ad
