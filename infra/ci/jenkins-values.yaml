@@ -9,7 +9,7 @@ controller:
   jenkinsUriPrefix: /jenkins
 
   admin:
-    createSecret: false
+    createSecret: true
     existingSecret: jenkins-admin
     userKey: jenkins-admin-user
     passwordKey: jenkins-admin-password
