@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/Sungw0o/HighFivebooks-V2.git
     targetRevision: main
-    path: k8s/base
+    path: k8s/overlays/aws
   destination:
     server: https://kubernetes.default.svc
     namespace: highfivebooks
@@ -18,4 +18,5 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-
+      - ApplyOutOfSyncOnly=true
+      - PruneLast=true

@@ -59,4 +59,101 @@ spec:
                 name: member-server
                 port:
                   name: http
-
+          - path: /api/accounts
+            pathType: Prefix
+            backend:
+              service:
+                name: member-server
+                port:
+                  name: http
+          - path: /api/address
+            pathType: Prefix
+            backend:
+              service:
+                name: member-server
+                port:
+                  name: http
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service:
+                name: member-server
+                port:
+                  name: http
+          - path: /api/emails
+            pathType: Prefix
+            backend:
+              service:
+                name: member-server
+                port:
+                  name: http
+          - path: /api/points
+            pathType: Prefix
+            backend:
+              service:
+                name: member-server
+                port:
+                  name: http
+          - path: /api/categories
+            pathType: Prefix
+            backend:
+              service:
+                name: book-server
+                port:
+                  name: http
+          - path: /api/search
+            pathType: Prefix
+            backend:
+              service:
+                name: book-server
+                port:
+                  name: http
+          - path: /api/admin/books
+            pathType: Prefix
+            backend:
+              service:
+                name: book-server
+                port:
+                  name: http
+          - path: /api/my-page/likes
+            pathType: Prefix
+            backend:
+              service:
+                name: book-server
+                port:
+                  name: http
+          - path: /api/tags
+            pathType: Prefix
+            backend:
+              service:
+                name: book-server
+                port:
+                  name: http
+          - path: /api/admin/orders
+            pathType: Prefix
+            backend:
+              service:
+                name: order-server
+                port:
+                  name: http
+          - path: /api/admin/delivery-policies
+            pathType: Prefix
+            backend:
+              service:
+                name: order-server
+                port:
+                  name: http
+          - path: /api/admin/wrappers
+            pathType: Prefix
+            backend:
+              service:
+                name: order-server
+                port:
+                  name: http
+          - path: /jenkins
+            pathType: Prefix
+            backend:
+              service:
+                name: jenkins
+                port:
+                  number: 8080

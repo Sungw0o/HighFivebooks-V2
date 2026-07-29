@@ -5,3 +5,4 @@ terraform.tfstate.*
 !example.tfvars
 crash.log
 crash.*.log
+tfplan*

@@ -1,0 +1,101 @@
+controller:
+  image:
+    registry: 756090160762.dkr.ecr.ap-northeast-2.amazonaws.com
+    repository: highfivebooks-v2/jenkins
+    tag: 2.568.1-1
+    pullPolicy: IfNotPresent
+
+  jenkinsUrl: https://dmjqeuxd1j8sl.cloudfront.net/jenkins
+  jenkinsUriPrefix: /jenkins
+
+  admin:
+    createSecret: false
+    existingSecret: jenkins-admin
+    userKey: jenkins-admin-user
+    passwordKey: jenkins-admin-password
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 750m
+      memory: 1Gi
+
+  installPlugins: false
+  additionalPlugins: []
+  initializeOnce: true
+
+  containerEnv:
+    - name: GITHUB_USER
+      valueFrom:
+        secretKeyRef:
+          name: jenkins-github
+          key: username
+    - name: GITHUB_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: jenkins-github
+          key: token
+
+  JCasC:
+    defaultConfig: true
+    overwriteConfiguration: true
+    configScripts:
+      github-credential: |
+        credentials:
+          system:
+            domainCredentials:
+              - credentials:
+                  - usernamePassword:
+                      scope: GLOBAL
+                      id: github-token
+                      username: "${GITHUB_USER}"
+                      password: "${GITHUB_TOKEN}"
+                      description: "GitHub token for manifest tag commits"
+      pipeline-job: |
+        jobs:
+          - script: >
+              pipelineJob('highfivebooks-v2') {
+                description('HighFiveBooks V2 EKS CI pipeline')
+                definition {
+                  cpsScm {
+                    scm {
+                      git {
+                        remote {
+                          url('https://github.com/Sungw0o/HighFivebooks-V2.git')
+                        }
+                        branches('*/main')
+                      }
+                    }
+                    scriptPath('Jenkinsfile')
+                    lightweight(true)
+                  }
+                }
+                triggers {
+                  githubPush()
+                }
+              }
+
+  serviceType: ClusterIP
+  servicePort: 8080
+  targetPort: 8080
+
+serviceAccount:
+  create: true
+  name: jenkins
+
+persistence:
+  enabled: true
+  storageClass: gp3
+  size: 8Gi
+
+agent:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi

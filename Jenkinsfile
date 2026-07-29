@@ -1,27 +1,77 @@
 // HighFiveBooks V2 Jenkins CI
 //
-// Jenkins owns CI only:
-//   1. detect changed services
-//   2. build and test those services
-//   3. build and push container images
-//   4. commit Kubernetes manifest image tag updates
-//
-// Argo CD owns deployment. This pipeline must not run kubectl apply.
+// Jenkins owns CI and Git image-tag updates.
+// Argo CD owns cluster deployment. Jenkins must not run kubectl apply.
 
 pipeline {
-  agent any
+  agent {
+    kubernetes {
+      defaultContainer 'maven'
+      yaml '''
+apiVersion: v1
+kind: Pod
+spec:
+  serviceAccountName: jenkins
+  containers:
+    - name: maven
+      image: maven:3.9.11-eclipse-temurin-21
+      command: ["sleep"]
+      args: ["99d"]
+      resources:
+        requests:
+          cpu: 250m
+          memory: 256Mi
+        limits:
+          cpu: "1"
+          memory: 1Gi
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:v1.23.2-debug
+      command: ["/busybox/cat"]
+      tty: true
+      env:
+        - name: AWS_REGION
+          value: ap-northeast-2
+        - name: AWS_SDK_LOAD_CONFIG
+          value: "true"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: "1"
+          memory: 1Gi
+    - name: gitops
+      image: alpine:3.21
+      command: ["sleep"]
+      args: ["99d"]
+      resources:
+        requests:
+          cpu: 50m
+          memory: 32Mi
+        limits:
+          cpu: 250m
+          memory: 256Mi
+'''
+    }
+  }
 
   options {
     timestamps()
     disableConcurrentBuilds()
+    skipDefaultCheckout(true)
+  }
+
+  triggers {
+    githubPush()
   }
 
   environment {
-    REGISTRY = 'ghcr.io'
-    IMAGE_NAMESPACE = 'sungw0o/highfivebooks-v2'
-    GITOPS_DIR = 'k8s/base'
+    AWS_ACCOUNT_ID = '756090160762'
+    AWS_REGION = 'ap-northeast-2'
+    ECR_REGISTRY = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+    IMAGE_NAMESPACE = 'highfivebooks-v2'
+    GITOPS_DIR = 'k8s/overlays/aws'
     GIT_REPO = 'github.com/Sungw0o/HighFivebooks-V2.git'
-    GIT_BRANCH = 'main'
   }
 
   stages {
@@ -29,7 +79,7 @@ pipeline {
       steps {
         checkout scm
         script {
-          env.IMAGE_TAG = bat(returnStdout: true, script: '@git rev-parse --short HEAD').trim()
+          env.IMAGE_TAG = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
           echo "IMAGE_TAG=${env.IMAGE_TAG}"
         }
       }
@@ -40,19 +90,17 @@ pipeline {
         script {
           def allServices = ['order', 'book', 'member', 'coupon', 'payment']
           def changedFiles = []
-          def detectionFailed = false
 
           try {
-            changedFiles = bat(returnStdout: true, script: '@git diff --name-only HEAD~1 HEAD')
-              .readLines()
-              .collect { it.trim().replace('\\', '/') }
-              .findAll { it }
+            changedFiles = sh(
+              returnStdout: true,
+              script: 'git diff --name-only HEAD~1 HEAD'
+            ).readLines().collect { it.trim() }.findAll { it }
           } catch (ignored) {
-            detectionFailed = true
-            echo 'Could not detect changed files; building every service.'
+            echo 'Could not detect the previous revision; building every service.'
           }
 
-          def author = bat(returnStdout: true, script: '@git log -1 --pretty=%an').trim()
+          def author = sh(returnStdout: true, script: 'git log -1 --pretty=%an').trim()
           def manifestOnly = changedFiles &&
             changedFiles.every { it == "${env.GITOPS_DIR}/kustomization.yaml" } &&
             author == 'jenkins-ci'
@@ -60,13 +108,12 @@ pipeline {
           if (manifestOnly) {
             env.SERVICES = ''
             currentBuild.result = 'NOT_BUILT'
-            echo 'Skipping Jenkins manifest tag update commit.'
+            echo 'Skipping the Jenkins image-tag commit.'
             return
           }
 
-          if (detectionFailed || !changedFiles) {
+          if (!changedFiles) {
             env.SERVICES = allServices.join(',')
-            echo "Building services: ${env.SERVICES}"
             return
           }
 
@@ -79,80 +126,92 @@ pipeline {
           }
 
           env.SERVICES = changedServices.join(',')
-          echo changedServices ? "Building services: ${env.SERVICES}" : 'No service changes detected.'
+          echo changedServices ? "Building services: ${env.SERVICES}" : 'No backend service changes detected.'
         }
       }
     }
 
-    stage('Build & Test') {
+    stage('Build and test') {
       when {
-        expression { return env.SERVICES?.trim() }
+        expression { env.SERVICES?.trim() }
       }
       steps {
         script {
           for (svc in env.SERVICES.split(',')) {
             dir("services/${svc}-server") {
-              bat '.\\mvnw.cmd -B clean package'
+              sh 'mvn -B clean package'
             }
           }
         }
       }
     }
 
-    stage('Image Build & Push') {
+    stage('Build and push images') {
       when {
-        allOf {
-          branch 'main'
-          expression { return env.SERVICES?.trim() }
-        }
+        expression { env.SERVICES?.trim() }
       }
       steps {
-        withCredentials([usernamePassword(credentialsId: 'ghcr-creds', usernameVariable: 'REG_USER', passwordVariable: 'REG_PASS')]) {
-          script {
-            bat 'echo %REG_PASS%| docker login %REGISTRY% -u %REG_USER% --password-stdin'
-            for (svc in env.SERVICES.split(',')) {
-              def image = "${env.REGISTRY}/${env.IMAGE_NAMESPACE}/${svc}-server:${env.IMAGE_TAG}"
-              dir("services/${svc}-server") {
-                bat "docker build -t ${image} ."
-                bat "docker push ${image}"
-              }
+        script {
+          for (svc in env.SERVICES.split(',')) {
+            def image = "${env.ECR_REGISTRY}/${env.IMAGE_NAMESPACE}/${svc}-server:${env.IMAGE_TAG}"
+            container('kaniko') {
+              sh """
+                /kaniko/executor \
+                  --context '${env.WORKSPACE}/services/${svc}-server' \
+                  --dockerfile '${env.WORKSPACE}/services/${svc}-server/Dockerfile' \
+                  --destination '${image}' \
+                  --cache=true \
+                  --cache-repo '${env.ECR_REGISTRY}/${env.IMAGE_NAMESPACE}/kaniko-cache'
+              """
             }
           }
         }
       }
     }
 
-    stage('Manifest Tag Update') {
+    stage('Commit image tags') {
       when {
-        allOf {
-          branch 'main'
-          expression { return env.SERVICES?.trim() }
-        }
+        expression { env.SERVICES?.trim() }
       }
       steps {
-        withCredentials([usernamePassword(credentialsId: 'git-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
-          script {
-            dir(env.GITOPS_DIR) {
-              for (svc in env.SERVICES.split(',')) {
-                def name = "${env.REGISTRY}/${env.IMAGE_NAMESPACE}/${svc}-server"
-                bat "kustomize edit set image ${name}=${name}:${env.IMAGE_TAG}"
-              }
-            }
+        container('gitops') {
+          withCredentials([
+            usernamePassword(
+              credentialsId: 'github-token',
+              usernameVariable: 'GIT_USER',
+              passwordVariable: 'GIT_TOKEN'
+            )
+          ]) {
+            sh '''
+              set -eu
+              apk add --no-cache curl git
+              curl -fsSL \
+                https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.7.1/kustomize_v5.7.1_linux_amd64.tar.gz \
+                | tar -xz -C /usr/local/bin
 
-            bat 'git config user.email "jenkins@ci.local"'
-            bat 'git config user.name "jenkins-ci"'
-            bat "git add ${env.GITOPS_DIR}/kustomization.yaml"
-            bat "git diff --cached --quiet && echo no manifest change || git commit -m \"deploy: update image tags to ${env.IMAGE_TAG}\""
-            bat "git push https://%GIT_USER%:%GIT_PASS%@${env.GIT_REPO} HEAD:${env.GIT_BRANCH}"
+              for svc in $(echo "$SERVICES" | tr ',' ' '); do
+                (
+                  cd "$GITOPS_DIR"
+                  kustomize edit set image \
+                    "ghcr.io/sungw0o/highfivebooks-v2/${svc}-server=${ECR_REGISTRY}/${IMAGE_NAMESPACE}/${svc}-server:${IMAGE_TAG}"
+                )
+              done
+
+              git config user.email "jenkins@ci.local"
+              git config user.name "jenkins-ci"
+              git add "$GITOPS_DIR/kustomization.yaml"
+
+              if git diff --cached --quiet; then
+                echo "No manifest change."
+                exit 0
+              fi
+
+              git commit -m "🚀 deploy: 이미지 태그를 ${IMAGE_TAG}로 갱신"
+              git push "https://${GIT_USER}:${GIT_TOKEN}@${GIT_REPO}" HEAD:main
+            '''
           }
         }
       }
-    }
-  }
-
-  post {
-    always {
-      bat 'docker logout %REGISTRY% || echo skip'
     }
   }
 }
