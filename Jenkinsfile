@@ -85,6 +85,7 @@ spec:
     stage('Checkout') {
       steps {
         checkout scm
+        sh 'git config --global --add safe.directory "$WORKSPACE"'
         script {
           env.IMAGE_TAG = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
           echo "IMAGE_TAG=${env.IMAGE_TAG}"
@@ -198,6 +199,7 @@ spec:
             sh '''
               set -eu
               apk add --no-cache curl git
+              git config --global --add safe.directory "$WORKSPACE"
               curl -fsSL \
                 https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.7.1/kustomize_v5.7.1_linux_amd64.tar.gz \
                 | tar -xz -C /usr/local/bin
