@@ -25,7 +25,7 @@ variable "node_instance_types" {
 variable "node_desired_size" {
   description = "Desired worker node count for the MSA workloads and ephemeral CI agents."
   type        = number
-  default     = 7
+  default     = 8
 }
 
 variable "node_min_size" {
@@ -37,7 +37,7 @@ variable "node_min_size" {
 variable "node_max_size" {
   description = "Maximum worker node count."
   type        = number
-  default     = 7
+  default     = 8
 }
 
 variable "force_delete_ecr" {
