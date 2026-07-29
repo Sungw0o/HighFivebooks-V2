@@ -9,7 +9,7 @@
         <mxCell id="title" value="HighFiveBooks V2  |  Jenkins + Argo CD 기반 무중단 GitOps 아키텍처" style="text;html=1;align=left;verticalAlign=middle;fontSize=27;fontStyle=1;fontColor=#111827;strokeColor=none;fillColor=none;" vertex="1" parent="1">
           <mxGeometry x="35" y="20" width="1450" height="42" as="geometry"/>
         </mxCell>
-        <mxCell id="subtitle" value="최종 목표 구조 · ap-northeast-2 · 8 × t3.small · ECR immutable tag · Argo Rollouts" style="text;html=1;align=left;fontSize=13;fontColor=#64748B;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+        <mxCell id="subtitle" value="최종 목표 구조 · ap-northeast-2 · workload 7 + CI 1 × t3.small · ECR immutable tag · Argo Rollouts" style="text;html=1;align=left;fontSize=13;fontColor=#64748B;strokeColor=none;fillColor=none;" vertex="1" parent="1">
           <mxGeometry x="38" y="62" width="980" height="24" as="geometry"/>
         </mxCell>
         <mxCell id="legend" value="파란선: 사용자 요청  |  주황선: CI  |  보라선: GitOps CD  |  점선: 비동기/관측" style="rounded=1;whiteSpace=wrap;html=1;align=center;fontSize=11;fontColor=#334155;strokeColor=#CBD5E1;fillColor=#F8FAFC;" vertex="1" parent="1">
@@ -75,7 +75,7 @@
           <mxGeometry x="310" y="235" width="78" height="78" as="geometry"/>
         </mxCell>
 
-        <mxCell id="eksBox" value="Amazon EKS · highfivebooks-ephemeral · Managed Node Group (8 × t3.small)" style="swimlane;startSize=30;rounded=1;html=1;fontStyle=1;fontSize=14;fontColor=#1E40AF;fillColor=#FFFFFF;strokeColor=#326CE5;strokeWidth=2;pointerEvents=0;" vertex="1" parent="runtimeLane">
+        <mxCell id="eksBox" value="Amazon EKS · highfivebooks-ephemeral · Workload Node Group (7) + CI Node Group (1) · t3.small" style="swimlane;startSize=30;rounded=1;html=1;fontStyle=1;fontSize=14;fontColor=#1E40AF;fillColor=#FFFFFF;strokeColor=#326CE5;strokeWidth=2;pointerEvents=0;" vertex="1" parent="runtimeLane">
           <mxGeometry x="455" y="45" width="1170" height="610" as="geometry"/>
         </mxCell>
         <mxCell id="ingressCtl" value="&lt;b&gt;AWS Load Balancer Controller&lt;/b&gt;&lt;br&gt;&lt;font color='#64748B'&gt;Ingress reconciliation&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;align=center;fontSize=11;strokeColor=#326CE5;fillColor=#EFF6FF;" vertex="1" parent="eksBox">

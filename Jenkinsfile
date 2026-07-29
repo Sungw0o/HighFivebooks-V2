@@ -12,6 +12,13 @@ apiVersion: v1
 kind: Pod
 spec:
   serviceAccountName: jenkins
+  nodeSelector:
+    workload: ci
+  tolerations:
+    - key: dedicated
+      operator: Equal
+      value: ci
+      effect: NoSchedule
   containers:
     - name: maven
       image: maven:3.9.11-eclipse-temurin-21

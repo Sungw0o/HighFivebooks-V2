@@ -23,9 +23,9 @@ variable "node_instance_types" {
 }
 
 variable "node_desired_size" {
-  description = "Desired worker node count for the MSA workloads and ephemeral CI agents."
+  description = "Desired worker node count for the MSA workloads."
   type        = number
-  default     = 8
+  default     = 7
 }
 
 variable "node_min_size" {
@@ -37,7 +37,13 @@ variable "node_min_size" {
 variable "node_max_size" {
   description = "Maximum worker node count."
   type        = number
-  default     = 8
+  default     = 7
+}
+
+variable "ci_node_instance_types" {
+  description = "Instance types for the isolated Jenkins build agent node group."
+  type        = list(string)
+  default     = ["t3.small"]
 }
 
 variable "force_delete_ecr" {

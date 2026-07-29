@@ -43,3 +43,39 @@ resource "aws_eks_node_group" "default" {
     Name = "${var.cluster_name}-workers"
   }
 }
+
+resource "aws_eks_node_group" "ci" {
+  cluster_name    = aws_eks_cluster.this.name
+  node_group_name = "${var.cluster_name}-ci"
+  node_role_arn   = aws_iam_role.node.arn
+  subnet_ids      = aws_subnet.public[*].id
+  instance_types  = var.ci_node_instance_types
+
+  scaling_config {
+    desired_size = 1
+    min_size     = 1
+    max_size     = 1
+  }
+
+  update_config {
+    max_unavailable = 1
+  }
+
+  labels = {
+    workload = "ci"
+  }
+
+  taint {
+    key    = "dedicated"
+    value  = "ci"
+    effect = "NO_SCHEDULE"
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.node
+  ]
+
+  tags = {
+    Name = "${var.cluster_name}-ci"
+  }
+}
