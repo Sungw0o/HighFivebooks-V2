@@ -35,6 +35,10 @@ resource "aws_eks_node_group" "default" {
     max_unavailable = 1
   }
 
+  labels = {
+    workload = "app"
+  }
+
   depends_on = [
     aws_iam_role_policy_attachment.node
   ]

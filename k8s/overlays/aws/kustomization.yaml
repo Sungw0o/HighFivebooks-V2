@@ -72,6 +72,10 @@ patches:
         timeoutSeconds: 3
         failureThreshold: 30
     - op: add
+      path: /spec/template/spec/nodeSelector
+      value:
+        workload: app
+    - op: add
       path: /spec/template/metadata/labels/tier
       value: backend
     - op: add
@@ -80,6 +84,8 @@ patches:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
           whenUnsatisfiable: DoNotSchedule
+          nodeAffinityPolicy: Honor
+          nodeTaintsPolicy: Honor
           labelSelector:
             matchLabels:
               tier: backend
@@ -88,6 +94,10 @@ patches:
     kind: Deployment
     version: v1
 - patch: |-
+    - op: add
+      path: /spec/template/spec/nodeSelector
+      value:
+        workload: app
     - op: add
       path: /spec/template/spec/containers/0/resources
       value:
@@ -149,6 +159,10 @@ patches:
         timeoutSeconds: 3
         failureThreshold: 30
     - op: add
+      path: /spec/template/spec/nodeSelector
+      value:
+        workload: app
+    - op: add
       path: /spec/template/metadata/labels/tier
       value: backend
     - op: add
@@ -157,6 +171,8 @@ patches:
         - maxSkew: 1
           topologyKey: kubernetes.io/hostname
           whenUnsatisfiable: DoNotSchedule
+          nodeAffinityPolicy: Honor
+          nodeTaintsPolicy: Honor
           labelSelector:
             matchLabels:
               tier: backend
