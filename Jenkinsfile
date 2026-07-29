@@ -56,7 +56,6 @@ spec:
   }
 
   options {
-    timestamps()
     disableConcurrentBuilds()
     skipDefaultCheckout(true)
   }
