@@ -1,172 +1,122 @@
-<div align="center">
-
 # HighFiveBooks V2
 
-**주문 정합성과 Kubernetes 운영 전환을 중심으로 리팩터링한 MSA 온라인 서점**
+> 온라인 서점 도메인을 5개 Spring Boot 서비스와 React 스토어프론트로 구성하고, Kubernetes 표준 리소스와 GitOps 배포 흐름으로 재정비한 MSA 프로젝트입니다.
 
 ![Java](https://img.shields.io/badge/Java-21-007396?logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.7-6DB33F?logo=springboot&logoColor=white)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-kind-326CE5?logo=kubernetes&logoColor=white)
-![Jenkins](https://img.shields.io/badge/Jenkins-CI-D24939?logo=jenkins&logoColor=white)
-![Argo CD](https://img.shields.io/badge/Argo%20CD-GitOps-EF7B4D?logo=argo&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.5.7-6DB33F?logo=springboot&logoColor=white)
+![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=black)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-Kustomize-326CE5?logo=kubernetes&logoColor=white)
+![Jenkins](https://img.shields.io/badge/CI-Jenkins-D24939?logo=jenkins&logoColor=white)
+![Argo CD](https://img.shields.io/badge/CD-Argo_CD-EF7B4D?logo=argo&logoColor=white)
 
-</div>
+## 💻 Tech Stacks
 
-HighFiveBooks는 도서 검색, 장바구니, 주문, 결제, 쿠폰, 포인트를 제공하는 온라인 서점입니다. V2에서는 첫 MSA 프로젝트에서 겪은 분산 정합성·장애 전파·배포 복잡도를 다시 검토하고, 주문 도메인의 안전성과 Kubernetes 기반 운영 구조를 집중적으로 개선했습니다.
+| 구분 | 기술 |
+| --- | --- |
+| Backend | Java 21, Spring Boot 3.5.7, Spring Cloud 2025.0.0, Spring Data JPA, OpenFeign, Resilience4j |
+| Frontend | React 19.2, TypeScript 5.7, Vite 6.4, React Router 7, Axios, Tailwind CSS 4, Framer Motion |
+| Data | MySQL 8.4, Redis 7.2, Elasticsearch 8.18 + Nori, MinIO |
+| Messaging | RabbitMQ, Retry/DLQ, ShedLock |
+| Infrastructure | Docker Compose, Kubernetes, Kustomize, AWS EKS/ALB/ECR overlay |
+| CI/CD | Jenkins, Kaniko, Amazon ECR, Argo CD, Argo Rollouts |
+| Test | JUnit 5, Mockito, Spring Boot Test, Testcontainers, k6 |
 
-## 핵심 결과
-
-| 영역 | 결과 | 근거 |
-|---|---|---|
-| 도서 조회 | k6 p95 `9,039.51ms → 51.97ms`, 약 174배 개선 | 동일 스크립트의 [baseline](perf/results/book-read-baseline-20260708-234828.json)·[optimized](perf/results/book-read-optimized-20260708-235147.json) 원본 결과 |
-| 주문 정합성 | 재고·포인트를 Try/Confirm/Cancel로 예약하고 실패 시 명시적 보상 | TCC adapter, 주문 서비스, boundary test |
-| 메시지 장애 | 결제 성공 이벤트에 Retry backoff와 DLQ 적용 | RabbitMQ 설정·테스트 |
-| 다중 인스턴스 | Redis ShedLock으로 주문 스케줄러 중복 실행 방지 | scheduler 설정·테스트 |
-| K8s 전환 | kind에서 인프라와 5개 서비스 rollout, Service 연결, readiness 응답 확인 | [2026-07-12 스모크 기록](docs/k8s-smoke-evidence.md) |
-| GitOps | Jenkins가 빌드·테스트·이미지·태그 갱신, Argo CD가 배포 담당 | `Jenkinsfile`, `k8s/gitops` |
-
-## V1에서 V2로
-
-| V1 | V2 | 전환 이유 |
-|---|---|---|
-| Eureka | Kubernetes Service DNS | 서비스 발견을 플랫폼 표준 기능으로 통합 |
-| Config Server | ConfigMap·Secret | 별도 설정 서버 의존을 줄이고 배포 선언과 런타임 설정을 함께 관리 |
-| Spring Cloud Gateway | Ingress | 클러스터 진입점과 서비스 라우팅을 Kubernetes 리소스로 표현 |
-| 서비스별 저장소 | 리팩터링 monorepo | 여러 서비스와 인프라 변경을 한 흐름에서 검증하되 독립 실행·배포 경계는 유지 |
-| Thymeleaf 프론트 | React 19·Vite | API 계약 중심의 프론트엔드로 분리하고 사용자 흐름을 재구성 |
-| 수동 배포 중심 | Jenkins CI + Argo CD GitOps | 빌드와 배포 책임을 분리하고 선언된 이미지 변경을 기준으로 배포하기 위해 적용 |
-
-Kubernetes와 GitOps는 단순히 이력서에 기술을 추가하기 위한 교체가 아니라, V1에서 운영해야 했던 Eureka·Config Server·Gateway 역할을 플랫폼 기능과 선언형 배포로 옮겨 보고 싶어 적용했습니다.
-
-## 서비스 구조
-
-```mermaid
-flowchart TB
-    USER["React Storefront"] --> INGRESS["Kubernetes Ingress"]
-    INGRESS --> ORDER["order-server"]
-    INGRESS --> BOOK["book-server"]
-    INGRESS --> MEMBER["member-server"]
-    INGRESS --> COUPON["coupon-server"]
-    INGRESS --> PAYMENT["payment-server"]
-
-    ORDER -->|"Service DNS / Feign"| BOOK
-    ORDER -->|"Service DNS / Feign"| MEMBER
-    ORDER -->|"Service DNS / Feign"| COUPON
-    ORDER -->|"Service DNS / Feign"| PAYMENT
-    PAYMENT --> RABBIT["RabbitMQ"]
-    RABBIT -->|"결제 성공 이벤트"| ORDER
-
-    BOOK --> ES["Elasticsearch"]
-    BOOK --> MINIO["MinIO"]
-    ORDER --> REDIS["Redis / ShedLock"]
-    ORDER --> MYSQL["MySQL"]
-    BOOK --> MYSQL
-    MEMBER --> MYSQL
-    COUPON --> MYSQL
-    PAYMENT --> MYSQL
-```
-
-## 주요 설계 결정
-
-### 1. TCC 기반 분산 트랜잭션 정합성
-
-주문 생성 시 재고와 포인트를 먼저 예약(Try)하고 결제 성공 후 확정(Confirm), 주문 실패·취소 시 해제(Cancel)합니다. 첫 MSA에서 XA나 Saga 오케스트레이터까지 한 번에 도입하면 러닝커브와 구현·운영 난도가 크게 높아진다고 판단했습니다. 그래서 각 도메인의 상태 전이를 API로 명확히 표현하고 기존 동기 호출 흐름에 적용하기 쉬운 TCC와 명시적 보상을 선택했습니다.
-
-이 선택은 모든 실패를 자동으로 해결한다는 뜻이 아닙니다. 외부 호출과 로컬 DB 트랜잭션을 분리하고 Feign 암묵적 retry를 끄며, 실패 경로에서 보상 호출을 드러내는 범위까지 구현했습니다. 보상 호출 자체의 실패를 영속화해 재처리하는 구조는 후속 과제입니다.
-
-```mermaid
-sequenceDiagram
-    participant O as order-server
-    participant B as book-server
-    participant M as member-server
-    participant P as payment-server
-
-    O->>B: Try - 재고 선점
-    O->>M: Try - 포인트 예약
-    O->>P: 결제 대기 주문 생성
-    alt 결제 성공
-        O->>B: Confirm - 재고 확정
-        O->>M: Confirm - 포인트 확정
-    else 주문 실패 또는 취소
-        O->>B: Cancel - 재고 해제
-        O->>M: Cancel - 포인트 예약 취소
-    end
-```
-
-### 2. 트랜잭션과 외부 I/O 경계 분리
-
-Feign·RabbitMQ 호출이 DB 트랜잭션을 오래 점유하지 않도록 오케스트레이션과 mutation 서비스를 분리했습니다. DB 상태 변경 메서드만 명시적으로 트랜잭션을 사용하고, 외부 상태 변경 호출은 `Retryer.NEVER_RETRY`, timeout, CircuitBreaker와 도메인 보상 흐름으로 제어합니다.
-
-### 3. 이벤트 실패를 Retry와 DLQ로 격리
-
-결제 성공 리스너가 예외를 삼키지 않도록 하고 제한된 backoff 재시도 후 DLQ로 이동시킵니다. poison message가 같은 큐에서 무한 반복되지 않으며 실패 이벤트를 별도로 확인할 수 있습니다.
-
-### 4. 조회 성능을 원본 결과로 관리
-
-도서 목록과 상세 조회 부하를 동시에 발생시키는 동일 k6 스크립트로 변경 전후를 측정했습니다. 10 VU 목록 조회와 10 VU 상세 조회, `size=1` 조건의 raw JSON을 저장해 개선 수치와 실행 조건을 함께 추적합니다.
-
-## CI/CD와 GitOps
+## 🏗️ System Architecture
 
 ```mermaid
 flowchart LR
-    PUSH["Git Push"] --> JENKINS["Jenkins"]
-    JENKINS --> DETECT["변경 서비스 탐지"]
-    DETECT --> TEST["Maven build·test"]
-    TEST --> IMAGE["GHCR image push"]
-    IMAGE --> TAG["Kustomize image tag commit"]
-    TAG --> ARGO["Argo CD sync"]
-    ARGO --> K8S["Kubernetes"]
+    U["사용자"] --> FE["React Storefront"]
+    FE --> ING["Kubernetes Ingress"]
+
+    subgraph K8S["Kubernetes Cluster"]
+        ING --> ORDER["Order Service"]
+        ING --> BOOK["Book Service"]
+        ING --> MEMBER["Member Service"]
+        ING --> COUPON["Coupon Service"]
+        ING --> PAYMENT["Payment Service"]
+
+        ORDER <-->|"Service DNS / Feign"| BOOK
+        ORDER <-->|"Service DNS / Feign"| MEMBER
+        ORDER <-->|"Service DNS / Feign"| COUPON
+        ORDER <-->|"Service DNS / Feign"| PAYMENT
+    end
+
+    ORDER --> MYSQL[("MySQL")]
+    BOOK --> ES[("Elasticsearch + Nori")]
+    BOOK --> MINIO[("MinIO")]
+    MEMBER --> REDIS[("Redis")]
+    ORDER --> MQ[("RabbitMQ")]
+    COUPON --> MQ
+    PAYMENT --> MQ
+    PAYMENT --> TOSS["Toss Payments"]
+    BOOK --> ALADIN["Aladin Open API"]
 ```
 
-- Jenkins는 변경된 서비스의 빌드·테스트, GHCR 이미지 push, `k8s/base/kustomization.yaml` 이미지 태그 갱신을 담당합니다.
-- Argo CD는 Git의 선언 상태를 클러스터에 동기화하며 Jenkins에서 `kubectl apply`를 실행하지 않습니다.
-- `k8s/base`는 현재 검증한 기본 Deployment 구성입니다.
-- `k8s/rollouts`에는 20% → 60초 → 50% → 60초 → 100%의 시간 기반 canary가 있습니다. AnalysisTemplate이나 메트릭 기반 자동 판정은 아직 없으므로 운영 성과로 과장하지 않습니다.
+### V1에서 V2로
 
-## Kubernetes 검증 상태
+| V1 | V2 | 목적 |
+| --- | --- | --- |
+| Spring Cloud Gateway | Kubernetes Ingress | 진입점과 라우팅을 표준 리소스로 통합 |
+| Eureka | Kubernetes Service DNS | 별도 서비스 레지스트리 제거 |
+| Config Server | ConfigMap / Secret | 설정 배포 단위를 Kubernetes로 일원화 |
+| 서비스별 수동 배포 | Kustomize base/overlay | 로컬과 AWS 환경 차이를 선언적으로 관리 |
+| 이미지 태그 수동 변경 | Git SHA 기반 불변 태그 | 배포 버전 추적성과 롤백 근거 확보 |
 
-2026-07-12 Windows·Docker 27.1.1·kind `highfivebooks` 환경에서 `scripts/k8s-smoke.ps1`을 실행해 다음을 확인했습니다.
+`k8s/base`에는 로컬 공통 리소스를, `k8s/overlays/aws`에는 ALB Ingress, ECR 이미지, `gp3` 스토리지, 리소스 제한 및 topology spread 설정을 분리했습니다. MSA 경계는 유지하면서 플랫폼 책임만 Kubernetes로 옮겼습니다.
 
-- namespace와 MySQL·Redis·RabbitMQ·Elasticsearch·MinIO StatefulSet rollout
-- book·member·coupon·payment·order Deployment rollout
-- 5개 서비스 EndpointSlice 주소와 order-server의 Service DNS 설정
-- order-server의 MySQL·RabbitMQ 연결 로그
-- Elasticsearch Nori 플러그인과 한국어 analyzer 동작
-- 5개 서비스 readiness endpoint HTTP 200
+## 🚀 CI/CD Pipeline
 
-이는 `k8s/base` Deployment의 로컬 kind 스모크 성공 근거입니다. Argo CD 동기화와 Argo Rollouts canary를 운영 클러스터에서 실행했다는 근거와는 구분합니다.
+```mermaid
+flowchart LR
+    DEV["Developer Push"] --> GH["GitHub Repository"]
+    GH --> JENKINS["Jenkins"]
+    JENKINS --> DIFF["변경 서비스 감지"]
+    DIFF --> TEST["Maven Build & Test"]
+    TEST --> KANIKO["Kaniko Image Build"]
+    KANIKO --> ECR["Amazon ECR\nGit SHA Tag"]
+    ECR --> UPDATE["AWS Overlay Image Tag 갱신"]
+    UPDATE --> COMMIT["GitOps Commit & Push"]
+    COMMIT --> ARGO["Argo CD Sync"]
+    ARGO --> EKS["Amazon EKS"]
+    EKS --> ROLLOUT["Argo Rollouts\nOrder Canary 20% → 50% → 100%"]
+```
 
-## 기술 스택
+- Jenkins는 `services/**` 변경 범위를 계산해 필요한 서비스만 빌드하고 테스트합니다.
+- Kaniko가 Docker daemon 없이 이미지를 빌드하여 Amazon ECR에 Git SHA 태그로 푸시합니다.
+- Jenkins는 클러스터에 직접 배포하지 않고 `k8s/overlays/aws`의 이미지 태그만 갱신합니다.
+- Argo CD가 Git을 단일 진실 공급원으로 감시하며 `prune`과 `selfHeal` 정책으로 상태를 동기화합니다.
+- 주문 서비스는 Argo Rollouts 매니페스트로 카나리 배포 단계를 선언했습니다.
 
-| 영역 | 기술 |
-|---|---|
-| Backend | Java 21, Spring Boot 3.5.7, Spring Cloud OpenFeign, Resilience4j, Spring Data JPA |
-| Frontend | React 19, TypeScript, Vite, TanStack Query, Tailwind CSS |
-| Data·Messaging | MySQL 8.4, Redis 7.2, RabbitMQ 3.13, Elasticsearch, MinIO |
-| Infra | Docker Compose, Kubernetes, kind, Kustomize, Nginx Ingress |
-| CI/CD | Jenkins, GHCR, Argo CD, Argo Rollouts |
-| Test | JUnit 5, Mockito, JDK HttpServer boundary test, k6 |
+## ✨ 주요 기능 (Key Features)
 
-## 로컬 실행
+| 영역 | 주요 기능 |
+| --- | --- |
+| 도서 | 도서 목록/상세, 카테고리 검색, Elasticsearch Nori 검색, 리뷰와 좋아요, Aladin 도서 수집 |
+| 회원 | 회원가입과 로그인, 소셜 로그인, 배송지, 장바구니, 포인트와 회원 등급 |
+| 쿠폰 | 쿠폰 발급/계산/사용/취소, 이벤트 소비 재시도와 DLQ 처리 |
+| 주문 | 주문 생성과 조회, 포장/배송 정책, 주문 취소와 반품, 최근 주문 조회 |
+| 결제 | Toss Payments 승인/취소, 결제 이벤트 발행과 실패 복구 |
+| 분산 정합성 | 재고 `hold/confirm/restore`, 포인트 `reserve/confirm/cancel`의 TCC 보상 흐름 |
+| 장애 격리 | Feign timeout, `Retryer.NEVER_RETRY`, Circuit Breaker, 메시지 멱등성 경계 |
 
-### Docker Compose
+## 🧪 Validation & Evidence
+
+- 주문 서비스 회귀 테스트: TCC 보상, Feign 재시도 금지, 결제 이벤트 멱등성 및 DLQ 경계를 포함합니다.
+- Kubernetes 스모크 검증: `scripts/k8s-smoke.ps1`에서 배포 상태와 주요 의존성을 확인합니다.
+- 도서 조회 k6 비교 기록: p95 `9,039.51 ms → 51.97 ms` 결과를 `perf/results`에 보관합니다.
+- CI/CD 구성은 [Jenkinsfile](Jenkinsfile), [Argo CD Application](k8s/gitops/argocd-application.yaml), [Order Rollout](k8s/rollouts/order-server-rollout.yaml)에서 확인할 수 있습니다.
+
+> 저장소의 AWS 매니페스트와 파이프라인은 재현 가능한 배포 구성이며, 항상 실행 중인 운영 환경을 의미하지는 않습니다.
+
+## 🛠️ Local Development
 
 ```powershell
 Copy-Item .env.example .env
-docker compose up -d mysql rabbitmq redis elasticsearch minio
-docker compose --profile apps up -d --build
+docker compose up -d --build
+docker compose ps
 ```
 
-기본 서비스 포트는 member `9001`, book `9002`, coupon `9004`, payment `9005`, order `9006`입니다.
-
-### order-server 테스트
-
-```powershell
-Set-Location services/order-server
-.\mvnw.cmd test
-```
-
-### Storefront
+스토어프론트만 실행하려면 다음 명령을 사용합니다.
 
 ```powershell
 Set-Location apps/storefront
@@ -174,56 +124,30 @@ npm ci
 npm run dev
 ```
 
-`VITE_TOSS_CLIENT_KEY`가 없으면 로컬 확인용 pseudo payment를 사용하고, 키가 있으면 Toss Payments 결제창을 호출합니다.
+환경 변수의 실제 값은 `.env`에만 두고 저장소에는 커밋하지 않습니다.
 
-### Kubernetes 스모크
-
-```powershell
-kubectl apply -k k8s/base
-powershell -ExecutionPolicy Bypass -File .\scripts\k8s-smoke.ps1
-```
-
-전체 재현 순서는 [로컬 재현 문서](docs/LOCAL_REPRODUCIBILITY.md)와 [K8s 전환 runbook](docs/k8s-transition-runbook.md)을 참고합니다.
-
-## 저장소 구조
+## 📁 Repository Structure
 
 ```text
-HighFivebooks-V2/
-├─ apps/storefront/       React 사용자 화면
-├─ services/              5개 도메인 Spring Boot 서비스
-├─ k8s/base/              kind에서 검증한 기본 리소스
-├─ k8s/rollouts/          시간 기반 Argo Rollouts canary
-├─ k8s/gitops/            Argo CD Application
-├─ perf/                  k6 스크립트와 원본 결과
-├─ scripts/               K8s 스모크 자동 점검
-├─ docs/                  설계 근거와 재현 문서
-└─ Jenkinsfile            변경 서비스 기반 CI·이미지·태그 갱신
+HighFiveBooks-V2/
+├─ apps/storefront/          # React 고객/관리자 화면
+├─ services/                 # order, book, member, coupon, payment
+├─ k8s/
+│  ├─ base/                  # 공통 Kubernetes 리소스
+│  ├─ overlays/aws/          # EKS/ALB/ECR 환경 차이
+│  ├─ gitops/                # Argo CD Application
+│  └─ rollouts/              # 카나리 배포 정의
+├─ perf/                     # k6 시나리오와 측정 결과
+├─ scripts/                  # 로컬/클러스터 검증 자동화
+├─ docs/                     # 설계, 운영, 트러블슈팅 근거
+├─ docker-compose.yml
+└─ Jenkinsfile
 ```
 
-## 근거 문서
+## 📚 Documentation
 
-| 문서 | 내용 |
-|---|---|
-| [order-flow-boundary-map.md](docs/order-flow-boundary-map.md) | 주문·결제·재고·포인트 경계 |
-| [order-resilience-evidence.md](docs/order-resilience-evidence.md) | 트랜잭션, DLQ, ShedLock, Feign 정책 |
-| [k8s-smoke-evidence.md](docs/k8s-smoke-evidence.md) | 2026-07-12 kind 실행 근거 |
-| [ARGOCD_ROLLOUTS_RUNBOOK.md](docs/ARGOCD_ROLLOUTS_RUNBOOK.md) | Jenkins·Argo CD·Rollouts 책임과 절차 |
-| [LOCAL_REPRODUCIBILITY.md](docs/LOCAL_REPRODUCIBILITY.md) | 로컬 통합 환경 재현 절차 |
-| [STOREFRONT_API_CONTRACT.md](docs/STOREFRONT_API_CONTRACT.md) | Storefront API 계약 |
-| [k8s-transition-runbook.md](docs/k8s-transition-runbook.md) | K8s 전환 실행 절차 |
-| [runtime-config.md](docs/runtime-config.md) | local/prod 런타임 설정 |
-| [PERFORMANCE_REPORT.md](docs/PERFORMANCE_REPORT.md) | 도서 조회 k6 성능 측정과 JPA pagination 병목 개선 결과 |
-| [DB_BATCH_TUNING.md](docs/DB_BATCH_TUNING.md) | 생일 쿠폰 발급 배치 병목 분석과 개선 방향 |
-| [PERFORMANCE_TEST_PROGRESS_2026-07-09.md](docs/PERFORMANCE_TEST_PROGRESS_2026-07-09.md) | 주문 생성 API, RabbitMQ DLQ, 주문 목록 테스트 진행 기록 |
-| [PORTFOLIO_PERFORMANCE_CASES.md](docs/PORTFOLIO_PERFORMANCE_CASES.md) | 백엔드 5개, 클라우드/인프라 5개 포트폴리오 사례 카드 |
-| [CLOUD_PORTFOLIO_SECTION.md](docs/CLOUD_PORTFOLIO_SECTION.md) | 클라우드/인프라 포트폴리오 반영 문단과 이력서 bullet |
-| [AWS_EKS_ONE_WEEK_OPERATION_PLAN.md](docs/AWS_EKS_ONE_WEEK_OPERATION_PLAN.md) | AWS EKS 1주 운영 전환 계획과 증거 캡처 체크리스트 |
-| [AWS_EKS_TROUBLESHOOTING_EVIDENCE.md](docs/AWS_EKS_TROUBLESHOOTING_EVIDENCE.md) | EKS 노드와 EBS CSI 장애 해결, gp3 동적 프로비저닝 전후 측정 |
-| [HIGHFIVEBOOKS_CHECKLIST_GAP_AUDIT.md](docs/HIGHFIVEBOOKS_CHECKLIST_GAP_AUDIT.md) | 취업 체크리스트 기준 적용 현황과 남은 보강 항목 |
-
-## 현재 한계
-
-- TCC 보상 호출 자체가 실패한 경우를 영속화하고 자동 재처리하는 별도 보상 큐·상태 머신은 없습니다.
-- 현재 로컬 스모크는 기본 Deployment 검증이며, Argo CD sync와 Rollout 승격·중단의 실제 실행 로그는 후속 증거가 필요합니다.
-- canary는 시간 기반 단계 전환이며 Prometheus 지표 기반 자동 분석은 적용하지 않았습니다.
-- Secret 예시는 개발용이므로 실제 환경에서는 External Secrets, Sealed Secrets 또는 클라우드 비밀 관리 서비스가 필요합니다.
+- [Storefront API Contract](docs/STOREFRONT_API_CONTRACT.md)
+- [Performance Report](docs/PERFORMANCE_REPORT.md)
+- [Order Flow Boundary Map](docs/order-flow-boundary-map.md)
+- [AWS EKS Operation Plan](docs/AWS_EKS_ONE_WEEK_OPERATION_PLAN.md)
+- [Argo CD Rollouts Runbook](docs/ARGOCD_ROLLOUTS_RUNBOOK.md)
