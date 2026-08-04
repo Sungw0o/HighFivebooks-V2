@@ -23,34 +23,9 @@
 
 ## 🏗️ System Architecture
 
-```mermaid
-flowchart LR
-    U["사용자"] --> FE["React Storefront"]
-    FE --> ING["Kubernetes Ingress"]
-
-    subgraph K8S["Kubernetes Cluster"]
-        ING --> ORDER["Order Service"]
-        ING --> BOOK["Book Service"]
-        ING --> MEMBER["Member Service"]
-        ING --> COUPON["Coupon Service"]
-        ING --> PAYMENT["Payment Service"]
-
-        ORDER <-->|"Service DNS / Feign"| BOOK
-        ORDER <-->|"Service DNS / Feign"| MEMBER
-        ORDER <-->|"Service DNS / Feign"| COUPON
-        ORDER <-->|"Service DNS / Feign"| PAYMENT
-    end
-
-    ORDER --> MYSQL[("MySQL")]
-    BOOK --> ES[("Elasticsearch + Nori")]
-    BOOK --> MINIO[("MinIO")]
-    MEMBER --> REDIS[("Redis")]
-    ORDER --> MQ[("RabbitMQ")]
-    COUPON --> MQ
-    PAYMENT --> MQ
-    PAYMENT --> TOSS["Toss Payments"]
-    BOOK --> ALADIN["Aladin Open API"]
-```
+<p align="center">
+  <img src="docs/highfivebooks-kubernetes-architecture.svg" alt="HighFiveBooks V2 Kubernetes 시스템 아키텍처" width="100%" />
+</p>
 
 ### V1에서 V2로
 
@@ -66,20 +41,9 @@ flowchart LR
 
 ## 🚀 CI/CD Pipeline
 
-```mermaid
-flowchart LR
-    DEV["Developer Push"] --> GH["GitHub Repository"]
-    GH --> JENKINS["Jenkins"]
-    JENKINS --> DIFF["변경 서비스 감지"]
-    DIFF --> TEST["Maven Build & Test"]
-    TEST --> KANIKO["Kaniko Image Build"]
-    KANIKO --> ECR["Amazon ECR\nGit SHA Tag"]
-    ECR --> UPDATE["AWS Overlay Image Tag 갱신"]
-    UPDATE --> COMMIT["GitOps Commit & Push"]
-    COMMIT --> ARGO["Argo CD Sync"]
-    ARGO --> EKS["Amazon EKS"]
-    EKS --> ROLLOUT["Argo Rollouts\nOrder Canary 20% → 50% → 100%"]
-```
+<p align="center">
+  <img src="docs/highfivebooks-gitops-pipeline.svg" alt="HighFiveBooks V2 CI/CD 파이프라인" width="100%" />
+</p>
 
 - Jenkins는 `services/**` 변경 범위를 계산해 필요한 서비스만 빌드하고 테스트합니다.
 - Kaniko가 Docker daemon 없이 이미지를 빌드하여 Amazon ECR에 Git SHA 태그로 푸시합니다.
