@@ -1,6 +1,6 @@
 # Order Server Resilience Evidence
 
-이 문서는 order-server 리팩토링 중 스케줄러 중복 실행 방지, Feign 장애 격리, K8s 전환 검증 근거를 한 곳에 모은다.
+이 문서는 order-server 리팩토링 중 스케줄러 중복 실행 방지와 Feign 장애 격리 근거를 한 곳에 모은다.
 
 ## 1. Scheduler Lock
 
@@ -11,7 +11,7 @@ order-server에는 두 개의 반복 작업이 있다.
 - `runOrderAutoCancel`: 10분마다 결제 대기 만료 주문을 취소한다.
 - `runDailyOrderStatusUpdate`: 매일 03시에 배송 완료와 구매 확정을 자동 처리한다.
 
-K8s에서 `order-server` replica를 2개 이상으로 늘리면 각 Pod의 `@Scheduled` 메서드가 동시에 실행될 수 있다. 같은 주문을 여러 Pod가 동시에 취소하거나 구매 확정하면 외부 보상 호출과 포인트 메시지가 중복될 위험이 있다.
+`order-server` 인스턴스를 2개 이상 실행하면 각 인스턴스의 `@Scheduled` 메서드가 동시에 실행될 수 있다. 같은 주문을 여러 인스턴스가 동시에 취소하거나 구매 확정하면 외부 보상 호출과 포인트 메시지가 중복될 위험이 있다.
 
 ### 선택
 
@@ -27,13 +27,13 @@ Redis 기반 ShedLock을 사용한다.
 - 결제 대기 만료 정리: `lockAtMostFor=PT9M`, `lockAtLeastFor=PT30S`
 - 일일 주문 상태 변경: `lockAtMostFor=PT30M`, `lockAtLeastFor=PT1M`
 
-`lockAtMostFor`는 Pod 장애나 작업 중단 시 락이 영구 점유되지 않게 하는 안전장치다. `lockAtLeastFor`는 작업이 매우 빨리 끝나더라도 같은 스케줄 구간에서 다른 Pod가 즉시 이어 실행되는 것을 줄인다.
+`lockAtMostFor`는 인스턴스 장애나 작업 중단 시 락이 영구 점유되지 않게 하는 안전장치다. `lockAtLeastFor`는 작업이 매우 빨리 끝나더라도 같은 스케줄 구간에서 다른 인스턴스가 즉시 이어 실행되는 것을 줄인다.
 
-### CronJob과 비교
+### 분리 실행 방식과 비교
 
-K8s CronJob은 스케줄 실행 주체를 클러스터로 옮길 수 있어 운영 표준화에는 좋다. 다만 현재 order-server의 자동 취소와 자동 상태 변경은 서비스 내부 도메인 로직을 직접 호출하고 있고, 로컬/테스트 환경에서도 같은 코드를 검증해야 한다.
+스케줄 실행 주체를 별도 프로세스로 분리하면 애플리케이션 인스턴스 수와 실행 횟수를 분리할 수 있다. 다만 현재 order-server의 자동 취소와 자동 상태 변경은 서비스 내부 도메인 로직을 직접 호출하고 있고, 로컬/테스트 환경에서도 같은 코드를 검증해야 한다.
 
-이번 리팩토링에서는 애플리케이션 스케줄러를 유지하고 ShedLock으로 중복 실행만 방어했다. 추후 운영 전용 배포에서는 CronJob으로 분리할 수 있지만, 그 경우 스케줄러 전용 command 또는 내부 API 계약을 별도로 만들어야 한다.
+이번 리팩토링에서는 애플리케이션 스케줄러를 유지하고 ShedLock으로 중복 실행만 방어했다. 추후 운영 전용 실행 단위로 분리한다면 스케줄러 전용 command 또는 내부 API 계약을 별도로 만들어야 한다.
 
 ### 검증
 
@@ -69,19 +69,6 @@ K8s CronJob은 스케줄 실행 주체를 클러스터로 옮길 수 있어 운�
 - `FeignResilienceConfigTest`: Feign retry 비활성화, local/prod timeout과 circuit breaker 설정 검증
 - `FeignClientBoundaryTest`: 실제 Feign contract의 path/header/body와 비재시도 경계를 검증
 
-## 3. K8s 전환 검증 연결
-
-K8s 전환 검증은 `docs/k8s-transition-runbook.md`의 smoke check와 수동 확인 항목으로 관리한다.
-
-검증 포인트:
-
-- Eureka 대신 `http://*-server:8080` Service DNS 사용
-- Config Server 대신 ConfigMap/Secret 환경변수 사용
-- RabbitMQ `payment-success-queue` DLQ arguments 생성
-- Rabbit listener retry backoff 값이 ConfigMap으로 주입
-- order-server replica 2개 이상에서도 Redis ShedLock으로 스케줄러 중복 실행 방지
-- liveness/readiness probe로 5개 서비스 기동 상태 확인
-
 ## 면접 설명 문장
 
-주문 서버는 결제, 재고, 포인트, 쿠폰처럼 외부 상태 변경을 많이 호출하기 때문에 단순 retry보다 경계 분리가 중요했습니다. Feign 기본 retry는 끄고 timeout/circuit breaker로 빠르게 실패시키며, 메시지 기반 재처리가 가능한 결제 성공 이벤트는 RabbitMQ retry/DLQ로 격리했습니다. 또한 K8s에서 order-server를 여러 Pod로 늘렸을 때 스케줄러가 중복 실행될 수 있어 Redis 기반 ShedLock을 적용했습니다.
+주문 서버는 결제, 재고, 포인트, 쿠폰처럼 외부 상태 변경을 많이 호출하기 때문에 단순 retry보다 경계 분리가 중요했습니다. Feign 기본 retry는 끄고 timeout/circuit breaker로 빠르게 실패시키며, 메시지 기반 재처리가 가능한 결제 성공 이벤트는 RabbitMQ retry/DLQ로 격리했습니다. 또한 order-server를 여러 인스턴스로 실행할 때 스케줄러가 중복 실행될 수 있어 Redis 기반 ShedLock을 적용했습니다.

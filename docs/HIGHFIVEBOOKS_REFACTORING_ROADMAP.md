@@ -5,7 +5,7 @@
 
 ## 1. 목표
 
-HighFiveBooks V2는 기존 팀 프로젝트를 개인 포트폴리오용으로 재정리한 저장소다. 핵심 방향은 MSA를 유지하면서 Spring Cloud 운영 구성 일부를 Kubernetes-native 구성으로 전환하고, 주문 도메인의 안정성을 깊게 보강하는 것이다.
+HighFiveBooks V2는 기존 팀 프로젝트를 개인 포트폴리오용으로 재정리한 저장소다. 핵심 방향은 MSA를 유지하면서 주문 도메인의 안정성과 로컬 재현성을 깊게 보강하는 것이다.
 
 핵심 문장:
 
@@ -24,8 +24,6 @@ monorepo로 리팩토링 관리를 단순화했지만, 각 도메인 서버는 �
 - 결제 성공 RabbitMQ 메시지 Retry/DLQ 정책 추가
 - 주문 스케줄러 Redis ShedLock 적용
 - Feign timeout, CircuitBreaker, retry 비활성화 정책 정리
-- K8s liveness/readiness probe 추가
-- K8s ConfigMap/Secret, Service DNS, Ingress 전환 문서화
 - README와 포트폴리오 근거 문서 갱신
 
 ### 일부러 하지 않는 것
@@ -34,7 +32,7 @@ monorepo로 리팩토링 관리를 단순화했지만, 각 도메인 서버는 �
 - 기존 Thymeleaf `front_server` 직접 리팩토링
 - Secret, API key, DB password를 코드에 커밋
 - 재고/쿠폰/포인트 같은 상태 변경 Feign 호출에 무조건 자동 retry 적용
-- 운영 클러스터 상시 운영 선언
+- 검증하지 않은 운영 환경 성과 선언
 
 ## 3. 현재 검증 상태
 
@@ -43,22 +41,6 @@ order-server 전체 테스트:
 ```text
 126 tests, 0 failures, 0 errors, 0 skipped
 ```
-
-K8s manifest 렌더링:
-
-```powershell
-kubectl kustomize k8s/base
-```
-
-결과: 성공
-
-K8s smoke check:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\k8s-smoke.ps1
-```
-
-현재 로컬 환경에는 `kubectl` current-context가 없고 kind도 설치되어 있지 않아 실제 클러스터 smoke는 실행하지 못했다. 자세한 기록은 `docs/k8s-smoke-evidence.md`에 남긴다.
 
 ## 4. 리팩토링 단계
 
@@ -116,13 +98,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k8s-smoke.ps1
 
 문제:
 
-- K8s에서 order-server replica가 2개 이상이면 `@Scheduled` 작업이 Pod마다 실행될 수 있었다.
+- order-server 인스턴스가 2개 이상이면 `@Scheduled` 작업이 인스턴스마다 실행될 수 있었다.
 
 결과:
 
 - Redis 기반 ShedLock 도입
 - 결제 대기 만료 주문 취소와 일일 상태 변경 작업에 `@SchedulerLock` 적용
-- ShedLock vs CronJob 판단 근거 문서화
+- 애플리케이션 스케줄러 유지와 분리 실행 방식의 판단 근거 문서화
 
 ### Phase 6. Feign 장애 격리
 
@@ -136,22 +118,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k8s-smoke.ps1
 - local/prod 프로필에 timeout과 CircuitBreaker 설정 명시
 - 비동기 재처리가 가능한 결제 성공 이벤트는 RabbitMQ retry/DLQ로 격리
 
-### Phase 7. K8s 전환 검증
-
-목표:
-
-- Eureka를 Service DNS로 대체
-- Config Server를 ConfigMap/Secret으로 대체
-- Gateway를 Ingress로 대체
-- 5개 백엔드 서비스의 readiness/liveness probe 구성
-
-결과:
-
-- `k8s/base` manifest 구성
-- `kubectl kustomize k8s/base` 렌더링 성공
-- 실제 클러스터 smoke는 현재 로컬 kube context 부재로 보류
-
-### Phase 8. React Storefront
+### Phase 7. React Storefront
 
 남은 큰 작업:
 
@@ -164,12 +131,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\k8s-smoke.ps1
 ```text
 주문 서버는 결제, 재고, 포인트, 쿠폰처럼 외부 상태 변경을 조율하는 도메인이라 장애 전파와 중복 처리 위험이 컸습니다.
 DB 트랜잭션과 외부 I/O 경계를 분리하고, Feign 자동 retry를 끈 대신 timeout/CircuitBreaker와 명시적 보상 흐름을 사용했습니다.
-비동기 재처리가 가능한 결제 성공 이벤트는 RabbitMQ Retry/DLQ로 격리했고, K8s 멀티 replica 환경의 스케줄러 중복 실행은 Redis ShedLock으로 방어했습니다.
+비동기 재처리가 가능한 결제 성공 이벤트는 RabbitMQ Retry/DLQ로 격리했고, 다중 인스턴스 환경의 스케줄러 중복 실행은 Redis ShedLock으로 방어했습니다.
 ```
 
 ## 6. 남은 우선순위
 
-1. 실제 kind 또는 Docker Desktop Kubernetes 환경에서 `scripts/k8s-smoke.ps1` 성공 로그 캡처
-2. React storefront 실제 연동
-3. ArgoCD/Argo Rollouts 실험 증거 추가
-4. README에 아키텍처 다이어그램과 화면 캡처 추가
+1. React storefront 실제 연동
+2. Docker Compose 전체 기동 재검증
+3. README에 아키텍처 다이어그램과 화면 캡처 추가

@@ -1,68 +1,37 @@
-# HighFiveBooks 포트폴리오/이력서 업데이트 초안
+# HighFiveBooks 이력서 프로젝트 문단
 
-작성일: 2026-07-08
+갱신일: 2026-08-12
 
-## 이력서 프로젝트 문단
+## 프로젝트 요약
 
-### HighFiveBooks V2 - 도서 커머스 MSA 로컬/클라우드 실행 환경 재구성
-
-Spring Boot 기반 도서 커머스 MSA를 로컬 Docker Compose 및 Kubernetes 전환이 가능한 구조로 정리하고, AWS RDS에서 확보한 대용량 도서 데이터를 로컬 통합 테스트 환경에 복제했습니다. 책, 회원, 쿠폰, 결제, 주문 서버와 MySQL, Redis, RabbitMQ, Elasticsearch, MinIO 인프라를 Compose로 통합 기동하고, 전체 서비스 health 및 책 조회 API를 검증했습니다.
+도서 커머스 MSA의 주문 흐름을 중심으로 JPA 조회 병목, TCC 멱등성과 실패 보상, RabbitMQ DLQ를 검증하고 Docker Compose로 로컬 재현 환경을 정리했습니다.
 
 ## 이력서 bullet
 
-- AWS EC2/RDS 환경에서 도서 데이터 157,118건을 적재하고, `mysqldump` 기반 압축 덤프를 생성해 로컬 MySQL로 복제하는 데이터 이전 흐름을 구성했습니다.
-- Docker Compose 기반 로컬 MSA 실행 환경을 정비해 `book`, `member`, `coupon`, `payment`, `order` 서버와 MySQL, Redis, RabbitMQ, Elasticsearch, MinIO를 한 번에 기동하도록 구성했습니다.
-- Elasticsearch 한글 검색 안정성을 위해 Nori analyzer 포함 이미지를 Compose에 적용하고, `analysis-nori` 플러그인 및 서비스 health를 검증했습니다.
-- 로컬 이메일 인증 미구현 상태에서도 서비스 health가 실패하지 않도록 Mail health check를 비활성화하여 개발/검증 환경의 기동 안정성을 높였습니다.
-- payment-server 컨테이너에 healthcheck 의존 도구인 `curl`을 추가해 Docker Compose dependency chain에서 `order-server`가 정상 기동되도록 수정했습니다.
-- RDS 덤프를 로컬 MySQL 컨테이너에 재현 가능하게 적재하는 PowerShell 스크립트를 작성해 대용량 책 데이터 초기화 과정을 자동화했습니다.
-- 전체 MSA 기동 후 `order-server`까지 healthy 상태를 확인하고, 실제 책 단건/목록 API 조회로 데이터 연동을 검증했습니다.
+- **검증 완료** — 도서 157,118건에서 JPA collection `EntityGraph`와 `Pageable` 조합의 메모리 pagination 병목을 재현하고, 조회별 fetch graph 분리로 목록 p95를 9,039.51ms에서 51.97ms로 개선했습니다(1회 동일 시나리오 기준 약 174배).
+- **부분 검증** — 주문 Confirm/Cancel 중복과 포인트·결제·재고 보상 실패/timeout 테스트를 추가해 재고·포인트의 1회 반영과 현재 순차 보상의 중단 지점을 명시했습니다.
+- **부분 검증** — RabbitMQ retry/DLQ 구성을 적용하고 poison message 격리 기록과 조건부 실브로커 통합 테스트를 마련했습니다.
 
-## 포트폴리오 상세 서술
+## 문제 해결 서술
 
-### 문제 상황
+### JPA 목록 조회
 
-기존 프로젝트는 서버별 실행 환경과 데이터 준비 과정이 분산되어 있어 주문, 쿠폰, 재고, 결제 흐름을 한 번에 검증하기 어려웠습니다. 특히 책 데이터가 충분히 준비되지 않으면 주문/재고 테스트가 현실적인 시나리오로 이어지지 않았고, Elasticsearch 한글 분석기 의존성이나 healthcheck 설정 차이로 로컬 실행 안정성이 떨어질 수 있었습니다.
+- **문제**: 작은 페이지인데도 목록 p95가 9초를 넘었다.
+- **선택**: 변경 폭이 작은 fetch graph 분리를 택했다.
+- **해결**: 목록은 `publisher`, 상세는 `bookAuthors.author`를 로딩하도록 분리했다.
+- **검증**: 저장된 k6 JSON에서 p95 9,039.51ms → 51.97ms를 확인했다.
+- **한계**: 짧은 전후 1회 측정이므로 반복 실험 중앙값은 아니다.
 
-### 해결 과정
+### 주문 TCC와 DLQ
 
-1. AWS EC2에서 RDS MySQL에 연결하고, 기존 도서 CSV 데이터를 정규화해 `book`, `publishers`, `authors`, `book_author` 테이블에 적재했습니다.
-2. 적재된 RDS 데이터를 압축 SQL 덤프로 추출하고 로컬 개발 환경으로 복사했습니다.
-3. Docker Compose 인프라를 점검하고, Elasticsearch 이미지를 Nori analyzer 포함 이미지로 교체했습니다.
-4. 로컬 MySQL에 덤프를 자동 import하는 `scripts/import-book-dump.ps1`를 추가했습니다.
-5. member-server의 Mail health check와 payment-server의 curl 누락 문제를 해결해 Compose dependency 기반 기동이 정상 동작하도록 만들었습니다.
-6. 전체 MSA를 기동한 뒤 health endpoint와 책 조회 API를 통해 서비스 간 기본 연결과 데이터 적재 상태를 검증했습니다.
+- **문제**: 중복 이벤트와 timeout이 이중 반영 또는 부분 보상을 만들 수 있었다.
+- **선택**: 상태 gate·idempotency key·RabbitMQ DLQ로 재처리 경계를 나눴다.
+- **해결**: 중복 Confirm/Cancel과 보상 실패 테스트, 실브로커 DLQ 통합 테스트를 추가했다.
+- **검증**: order 37건과 stock 11건의 대상 테스트가 통과했다. DLQ 실브로커 테스트는 이번 세션에서 skip됐다.
+- **한계**: 보상 단계 영속화와 durable retry가 없어 완전한 TCC coordinator는 아니다.
 
-### 결과
+## 핵심 기술
 
-- 로컬 MySQL 기준 책 데이터 `157,118`건 적재 완료
-- `book`, `member`, `coupon`, `payment`, `order` 서버 전체 healthy 확인
-- MySQL, Redis, RabbitMQ, Elasticsearch, MinIO 인프라 healthy 확인
-- `GET /api/books/1`, `GET /api/books?page=0&size=1` 실제 조회 성공
-- 주문/쿠폰/재고/결제 통합 검증을 진행할 수 있는 로컬 MSA 기반 마련
+Java 21, Spring Boot 3.5.7, Spring Data JPA, OpenFeign/Resilience4j, RabbitMQ, MySQL, Redis, Elasticsearch, Docker Compose, JUnit 5·Mockito·k6.
 
-## 면접 답변용 요약
-
-이 프로젝트에서는 단순히 서버를 띄우는 데서 끝내지 않고, 실제 주문 플로우 검증에 필요한 책 데이터를 먼저 확보했습니다. AWS RDS에 15만 건 이상의 도서 데이터를 적재한 뒤 덤프로 추출하고, Docker Compose 기반 로컬 MSA 환경에 복제했습니다. 이후 Elasticsearch Nori analyzer, healthcheck, payment 컨테이너의 curl 누락 같은 실행 환경 문제를 하나씩 해결해 최종적으로 주문 서버까지 healthy 상태로 기동되는 환경을 만들었습니다.
-
-## 강조 키워드
-
-- Spring Boot MSA
-- Docker Compose
-- Kubernetes 전환 준비
-- AWS EC2/RDS
-- MySQL 데이터 마이그레이션
-- RabbitMQ
-- Redis
-- Elasticsearch Nori analyzer
-- MinIO
-- Healthcheck 안정화
-- 로컬 통합 테스트 환경
-
-## 다음 포트폴리오 보강 포인트
-
-- 쿠폰 적용 주문 플로우 검증 결과 추가
-- 재고 hold, confirm, restore 시나리오 검증 결과 추가
-- Toss 결제 승인/실패/취소 시나리오 검증 결과 추가
-- 책 목록 API fetch join pagination 성능 개선 사례 추가
-- Kubernetes 배포 전환 및 smoke test 결과 추가
+숫자와 기술명 대조 기준은 `PORTFOLIO_RESUME_CROSSCHECK.md`를 따른다.

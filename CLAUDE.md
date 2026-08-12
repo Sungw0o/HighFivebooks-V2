@@ -11,7 +11,6 @@ services/book-server      book/search/stock service
 services/member-server    member/point/cart service
 services/coupon-server    coupon service
 services/payment-server   payment service
-k8s                       Kubernetes manifests
 docs                      planning notes
 ```
 
@@ -121,9 +120,8 @@ npm run build
 
 - MSA 유지.
 - monolith로 합치지 않음.
-- Eureka는 Kubernetes Service DNS로 대체.
-- Config Server는 ConfigMap/Secret으로 대체.
-- Gateway는 Ingress로 대체.
+- 기존 Eureka, Config Server, Gateway 계약 유지.
+- 배포 기준은 단일 EC2의 컨테이너 기반 MSA.
 - `order-server`가 핵심 리팩토링 대상.
 - React storefront는 기존 Thymeleaf 프론트를 대체하는 실제 사용자 프론트.
 

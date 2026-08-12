@@ -170,7 +170,7 @@ p95: 15.28ms
 2. 회원 주문 seed 생성 후 주문 목록 DB 인덱스 + EXPLAIN 전후 비교
 3. 회원/쿠폰/포인트 포함 주문 생성 시나리오 확장
 4. book/coupon/member 서버 장애 주입 후 Feign timeout / CircuitBreaker 검증
-5. K8s smoke 재실행 및 Ingress 기준 주문 생성 부하 테스트
+5. 단일 EC2 배포 환경에서 주문 생성 부하 테스트
 
 ## 포트폴리오 문장
 

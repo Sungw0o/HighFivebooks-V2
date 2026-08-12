@@ -9,7 +9,7 @@ const BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? ''
  * 공용 axios 인스턴스.
  * - withCredentials: 비회원 장바구니 guestCookie(Set-Cookie) 유지
  * - 요청: Authorization Bearer + X-USER-ID(JWT sub) 주입
- *   ※ 백엔드는 X-USER-ID 헤더를 신뢰한다(구 gateway 계약). K8s 전환 시 Ingress/BFF에서
+ *   ※ 백엔드는 X-USER-ID 헤더를 신뢰한다(구 gateway 계약). 운영 환경에서는 API Gateway/BFF에서
  *     JWT 검증 후 주입하는 구조 확정 필요 — docs/STOREFRONT_API_CONTRACT.md 참고.
  * - 응답 401: X-Refresh-Token 헤더로 /api/auth/reissue 1회 재발급 후 원 요청 재시도
  */

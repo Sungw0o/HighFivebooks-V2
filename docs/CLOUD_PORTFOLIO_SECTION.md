@@ -44,7 +44,7 @@ AWS EC2/RDS를 최소 비용으로 사용해 15만 건 이상의 도서 데이�
 
 - AWS EC2/RDS를 활용해 157,118건 도서 데이터를 확보하고, dump 기반 로컬 MySQL 복제 흐름을 구성해 실제 데이터 규모의 성능 테스트 환경을 마련했습니다.
 - Docker Compose로 `book`, `member`, `coupon`, `payment`, `order` 서버와 MySQL, Redis, RabbitMQ, Elasticsearch, MinIO를 통합 기동하도록 정리해 MSA 로컬 재현성을 확보했습니다.
-- Elasticsearch 한글 검색 환경 일관성을 위해 Nori analyzer 포함 이미지를 Compose/K8s 전환 기준 이미지로 정리했습니다.
+- Elasticsearch 한글 검색 환경 일관성을 위해 Nori analyzer 포함 이미지를 Docker Compose 기준 이미지로 정리했습니다.
 - healthcheck 의존 도구 누락과 외부 mail health indicator 문제를 정리해 Compose dependency 기반 서비스 기동 안정성을 개선했습니다.
 - k6 smoke 테스트를 통해 Docker Compose 로컬 MSA의 주문 목록 API가 checks 100%, 실패율 0%, p95 15.28ms로 응답하는 것을 확인했습니다.
 
@@ -65,8 +65,6 @@ HighFiveBooks V2에서는 프리티어 비용 제약을 고려해 전체 서비�
 - `docs/PERFORMANCE_REPORT.md`
 - `docs/PERFORMANCE_TEST_PROGRESS_2026-07-09.md`
 - `docs/LOCAL_REPRODUCIBILITY.md`
-- `docs/k8s-transition-runbook.md`
-- `docs/k8s-smoke-evidence.md`
 - `scripts/import-book-dump.ps1`
 - `scripts/local-up.ps1`
 - `docker-compose.yml`
@@ -79,11 +77,8 @@ HighFiveBooks V2에서는 프리티어 비용 제약을 고려해 전체 서비�
 - Docker Compose 전체 healthy 화면
 - RabbitMQ queue/DLQ 화면
 - Elasticsearch Nori plugin 확인 API
-- `kubectl kustomize k8s/base` 결과
-- 실제 Kubernetes context에서 smoke 성공 화면
 
 ## 주의해서 말할 것
 
 - Cloudflare + S3 + EC2 Ingress + RDS 구조는 아직 실제 배포 완료가 아니라 설계와 비용 판단 단계로 말한다.
-- K8s는 manifest, runbook, smoke script, 렌더링 검증까지 완료됐고 실제 클러스터 성공 캡처는 별도 보강이 필요하다고 말한다.
-- "운영 배포 완료"보다 "프리티어 제약에서 데이터 확보, 로컬 재현성, K8s 전환 가능성을 검증했다"로 표현하는 것이 정확하다.
+- "운영 배포 완료"보다 "프리티어 제약에서 데이터 확보와 로컬 재현성을 검증했다"로 표현하는 것이 정확하다.
