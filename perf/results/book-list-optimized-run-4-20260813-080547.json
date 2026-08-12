@@ -1,0 +1,153 @@
+{
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "book list status is 200": {
+                    "name": "book list status is 200",
+                    "path": "::book list status is 200",
+                    "id": "06fdb257ab9a68accd40e9a8299195b8",
+                    "passes": 59,
+                    "fails": 0
+                },
+                "book list has content": {
+                    "name": "book list has content",
+                    "path": "::book list has content",
+                    "id": "fa0b910354d3c70eb8eaa94c35696166",
+                    "passes": 59,
+                    "fails": 0
+                }
+            }
+    },
+    "metrics": {
+        "http_req_duration": {
+            "avg": 21.914685457627108,
+            "min": 18.537409,
+            "med": 21.768033,
+            "max": 27.608994,
+            "p(90)": 24.4717026,
+            "p(95)": 24.921040499999993
+        },
+        "book_list_failure": {
+            "passes": 0,
+            "fails": 59,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "data_sent": {
+            "count": 6726,
+            "rate": 111.45853666085627
+        },
+        "iterations": {
+            "count": 59,
+            "rate": 0.9777064619373357
+        },
+        "http_req_sending": {
+            "avg": 0.025574288135593225,
+            "min": 0.016592,
+            "med": 0.021382,
+            "max": 0.101459,
+            "p(90)": 0.038662600000000005,
+            "p(95)": 0.04325409999999999
+        },
+        "checks": {
+            "passes": 118,
+            "fails": 0,
+            "value": 1
+        },
+        "http_req_blocked": {
+            "min": 0.003237,
+            "med": 0.004378,
+            "max": 2.672794,
+            "p(90)": 0.0064142,
+            "p(95)": 0.007088,
+            "avg": 0.0499629152542373
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 59,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "http_req_duration{expected_response:true}": {
+            "avg": 21.914685457627108,
+            "min": 18.537409,
+            "med": 21.768033,
+            "max": 27.608994,
+            "p(90)": 24.4717026,
+            "p(95)": 24.921040499999993
+        },
+        "vus_max": {
+            "value": 1,
+            "min": 1,
+            "max": 1
+        },
+        "http_req_connecting": {
+            "med": 0,
+            "max": 1.160792,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.0196744406779661,
+            "min": 0
+        },
+        "http_req_tls_handshaking": {
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0,
+            "min": 0
+        },
+        "data_received": {
+            "count": 78588,
+            "rate": 1302.305007300531
+        },
+        "iteration_duration": {
+            "med": 1022.776432,
+            "max": 1029.027041,
+            "p(90)": 1025.2547036,
+            "p(95)": 1026.4779141,
+            "avg": 1022.8208595762709,
+            "min": 1019.270956
+        },
+        "http_reqs": {
+            "count": 59,
+            "rate": 0.9777064619373357
+        },
+        "vus": {
+            "value": 1,
+            "min": 1,
+            "max": 1
+        },
+        "http_req_waiting": {
+            "med": 21.46377,
+            "max": 27.462044,
+            "p(90)": 24.2090824,
+            "p(95)": 24.594201699999996,
+            "avg": 21.703595016949155,
+            "min": 18.266285
+        },
+        "http_req_receiving": {
+            "med": 0.140416,
+            "max": 0.700079,
+            "p(90)": 0.32315060000000007,
+            "p(95)": 0.3803813,
+            "avg": 0.1855161525423729,
+            "min": 0.061962
+        },
+        "book_list_duration": {
+            "avg": 21.914685457627108,
+            "min": 18.537409,
+            "med": 21.768033,
+            "max": 27.608994,
+            "p(90)": 24.4717026,
+            "p(95)": 24.921040499999993
+        }
+    }
+}

@@ -1,0 +1,153 @@
+{
+    "metrics": {
+        "http_req_waiting": {
+            "avg": 2614.156498882353,
+            "min": 2320.503234,
+            "med": 2679.830954,
+            "max": 2935.533679,
+            "p(90)": 2855.5162898,
+            "p(95)": 2874.5355774
+        },
+        "vus": {
+            "value": 1,
+            "min": 1,
+            "max": 1
+        },
+        "iterations": {
+            "count": 17,
+            "rate": 0.27655817730118115
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 17,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "http_req_duration{expected_response:true}": {
+            "avg": 2614.8261188235297,
+            "min": 2321.282944,
+            "med": 2680.770146,
+            "max": 2936.206483,
+            "p(90)": 2856.227868,
+            "p(95)": 2875.2574934
+        },
+        "book_list_failure": {
+            "passes": 0,
+            "fails": 17,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "checks": {
+            "passes": 34,
+            "fails": 0,
+            "value": 1
+        },
+        "data_received": {
+            "count": 22644,
+            "rate": 368.3754921651733
+        },
+        "http_req_sending": {
+            "avg": 0.04870952941176471,
+            "min": 0.016903,
+            "med": 0.023075,
+            "max": 0.329718,
+            "p(90)": 0.07896320000000004,
+            "p(95)": 0.17307159999999988
+        },
+        "http_req_connecting": {
+            "avg": 0.06589158823529412,
+            "min": 0,
+            "med": 0,
+            "max": 1.120157,
+            "p(90)": 0,
+            "p(95)": 0.22403139999999921
+        },
+        "book_list_duration": {
+            "min": 2321.282944,
+            "med": 2680.770146,
+            "max": 2936.206483,
+            "p(90)": 2856.227868,
+            "p(95)": 2875.2574934,
+            "avg": 2614.8261188235297
+        },
+        "http_reqs": {
+            "count": 17,
+            "rate": 0.27655817730118115
+        },
+        "http_req_duration": {
+            "avg": 2614.8261188235297,
+            "min": 2321.282944,
+            "med": 2680.770146,
+            "max": 2936.206483,
+            "p(90)": 2856.227868,
+            "p(95)": 2875.2574934
+        },
+        "http_req_blocked": {
+            "max": 2.768901,
+            "p(90)": 0.0097552,
+            "p(95)": 0.5621569999999981,
+            "avg": 0.16809035294117647,
+            "min": 0.003958,
+            "med": 0.005
+        },
+        "http_req_receiving": {
+            "min": 0.13915,
+            "med": 0.599632,
+            "max": 1.143352,
+            "p(90)": 0.9301178,
+            "p(95)": 1.0094879999999997,
+            "avg": 0.6209104117647058
+        },
+        "iteration_duration": {
+            "med": 3681.27574,
+            "max": 3937.626479,
+            "p(90)": 3857.5396302,
+            "p(95)": 3876.4994422,
+            "avg": 3615.9858239411765,
+            "min": 3322.224148
+        },
+        "vus_max": {
+            "value": 1,
+            "min": 1,
+            "max": 1
+        },
+        "http_req_tls_handshaking": {
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "data_sent": {
+            "count": 1938,
+            "rate": 31.527632212334648
+        }
+    },
+    "root_group": {
+        "checks": {
+            "book list status is 200": {
+                "passes": 17,
+                "fails": 0,
+                "name": "book list status is 200",
+                "path": "::book list status is 200",
+                "id": "06fdb257ab9a68accd40e9a8299195b8"
+            },
+            "book list has content": {
+                "path": "::book list has content",
+                "id": "fa0b910354d3c70eb8eaa94c35696166",
+                "passes": 17,
+                "fails": 0,
+                "name": "book list has content"
+            }
+        },
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {}
+    }
+}

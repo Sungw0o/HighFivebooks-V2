@@ -103,7 +103,7 @@ flowchart LR
 
 - 주문 서비스 회귀 테스트: TCC 보상, Feign 재시도 금지, 결제 이벤트 멱등성 및 DLQ 경계를 포함합니다.
 - Kubernetes 스모크 검증: `scripts/k8s-smoke.ps1`에서 배포 상태와 주요 의존성을 확인합니다.
-- 도서 조회 k6 비교 기록: p95 `9,039.51 ms → 51.97 ms` 결과를 `perf/results`에 보관합니다.
+- 도서 조회 k6 반복 측정: 전후 각 5회 p95 중앙값 `2,913.60 ms → 26.96 ms` 결과를 `perf/results`에 보관합니다.
 - CI/CD 구성은 [Jenkinsfile](Jenkinsfile), [Argo CD Application](k8s/gitops/argocd-application.yaml), [Order Rollout](k8s/rollouts/order-server-rollout.yaml)에서 확인할 수 있습니다.
 
 > 저장소의 AWS 매니페스트와 파이프라인은 재현 가능한 배포 구성이며, 항상 실행 중인 운영 환경을 의미하지는 않습니다.
