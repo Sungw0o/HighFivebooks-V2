@@ -182,6 +182,27 @@ class OrderServiceImplTest {
             assertThatThrownBy(() -> orderService.createOrder(request))
                     .isInstanceOf(RuntimeException.class)
                     .hasMessage("Main Logic Error"); // 메인 에러가 던져져야 함
+
+            verify(bookClient).releaseHeldStock(anyList(), anyString());
+        }
+
+        @Test
+        @DisplayName("재고 보상 timeout도 원본 실패를 덮어쓰지 않는다")
+        void fail_StockCompensationTimeout_PreservesOriginalFailure() {
+            given(memberClient.getMemberGrade(anyLong())).willReturn(mockGradeResponse);
+            given(bookClient.getBooksBulk(anyList())).willReturn(ResponseEntity.ok(List.of(mockBookInfo)));
+            given(wrapperRepository.findAllById(any())).willReturn(List.of(mockWrapper));
+            willThrow(new RuntimeException("Main Logic Error"))
+                    .given(orderCreateService).createOrderInTransaction(any(), anyString(), any(), any());
+            willThrow(new RuntimeException("Read timed out"))
+                    .given(bookClient).releaseHeldStock(anyList(), anyString());
+
+            assertThatThrownBy(() -> orderService.createOrder(request))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessage("Main Logic Error");
+
+            verify(memberClient).cancelPoint(any(PointTransactionRequest.class));
+            verify(bookClient).releaseHeldStock(anyList(), anyString());
         }
 
         @Test
@@ -257,6 +278,32 @@ class OrderServiceImplTest {
 
             verify(couponClient).useCoupon(eq(100L), any());
             verify(orderStatusMutationService).markPaymentSuccess(eq(orderId), eq("pg"), eq(30000));
+        }
+
+        @Test
+        @DisplayName("동일 Confirm 메시지를 두 번 처리해도 외부 확정은 한 번만 수행한다")
+        void duplicateConfirm_IsIdempotent() {
+            Long orderId = 1L;
+            Order waiting = Order.builder()
+                    .id(orderId).userId(100L).deliveryStatus(DeliveryStatus.PAYMENT_WAITING)
+                    .paymentAmount(30000).orderKey("key").build();
+            waiting.addOrderItem(OrderItem.builder().bookId(101L).quantity(1).build());
+            ReflectionTestUtils.setField(waiting, "couponId", 10L);
+            ReflectionTestUtils.setField(waiting, "pointDiscount", 1000);
+            Order preparing = Order.builder()
+                    .id(orderId).deliveryStatus(DeliveryStatus.PREPARING).build();
+            given(orderRepository.findByIdWithItems(orderId))
+                    .willReturn(Optional.of(waiting), Optional.of(preparing));
+            PaymentSuccessMessage message = PaymentSuccessMessage.builder()
+                    .orderId(orderId).paymentKey("pg").totalAmount(30000L).build();
+
+            orderService.processPaymentSuccessMessage(message);
+            orderService.processPaymentSuccessMessage(message);
+
+            verify(couponClient).useCoupon(eq(100L), any());
+            verify(bookClient).confirmStockDeduction(anyList(), eq("key"));
+            verify(memberClient).confirmPoint(any(PointTransactionRequest.class));
+            verify(orderStatusMutationService).markPaymentSuccess(orderId, "pg", 30000);
         }
 
         @Test

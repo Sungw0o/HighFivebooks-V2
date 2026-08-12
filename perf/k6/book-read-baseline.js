@@ -3,6 +3,7 @@ import { check, sleep } from 'k6';
 import { Trend, Rate } from 'k6/metrics';
 
 const baseUrl = __ENV.BASE_URL || 'http://host.docker.internal:9002';
+const expectedIsbn = __ENV.EXPECTED_ISBN || '9791156759270';
 
 export const options = {
   scenarios: {
@@ -38,7 +39,7 @@ export function bookDetail() {
 
   const ok = check(res, {
     'book detail status is 200': (r) => r.status === 200,
-    'book detail has isbn': (r) => r.body.includes('9791156759270'),
+    'book detail has isbn': (r) => r.body.includes(expectedIsbn),
   });
 
   bookDetailDuration.add(res.timings.duration);

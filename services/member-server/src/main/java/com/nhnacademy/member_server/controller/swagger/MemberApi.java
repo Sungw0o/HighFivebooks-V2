@@ -54,7 +54,9 @@ public interface MemberApi {
     @ApiResponse(responseCode = "200", content = @Content(mediaType = "application/json",
             examples = @ExampleObject(value = "[101, 105, 203, 500]")))
     ResponseEntity<List<Long>> getBirthdayMemberIds(
-            @Parameter(description = "조회할 월") @RequestParam("month") int month);
+            @Parameter(description = "조회할 월") @RequestParam("month") int month,
+            @Parameter(description = "페이지 번호") @RequestParam(value = "page", defaultValue = "0") int page,
+            @Parameter(description = "페이지 크기") @RequestParam(value = "size", defaultValue = "1000") int size);
 
     @Operation(summary = "회원 권한 변경 (Admin)")
     @ApiResponse(responseCode = "200", content = @Content(examples = @ExampleObject(value = "회원(100)의 권한이 ADMIN로 변경되었습니다.")))

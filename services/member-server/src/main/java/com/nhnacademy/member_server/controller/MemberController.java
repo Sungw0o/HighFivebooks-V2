@@ -65,9 +65,11 @@ public class MemberController implements MemberApi {
 
     @GetMapping("/birthday")
     public ResponseEntity<List<Long>> getBirthdayMemberIds(
-            @RequestParam("month") int month
+            @RequestParam("month") int month,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "1000") int size
     ) {
-        List<Long> memberIds = memberService.getBirthdayMemberIds(month);
+        List<Long> memberIds = memberService.getBirthdayMemberIds(month, page, size);
         return ResponseEntity.ok(memberIds);
     }
 

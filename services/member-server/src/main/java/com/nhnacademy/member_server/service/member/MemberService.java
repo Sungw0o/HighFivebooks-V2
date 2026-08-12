@@ -13,7 +13,7 @@ public interface MemberService {
 
     MemberResponse updateMember(Long memberId, MemberUpdateRequest memberUpdateRequest);
 
-    List<Long> getBirthdayMemberIds(int month);
+    List<Long> getBirthdayMemberIds(int month, int page, int size);
 
     void updateRole(Long memberId, Role newRole);
 
