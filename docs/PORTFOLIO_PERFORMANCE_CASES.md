@@ -16,13 +16,13 @@
 
 상태: 완료
 
-하다 보니 AWS RDS에서 확보한 도서 데이터를 로컬 MSA 환경에 복제한 뒤, 157,118건 데이터 기준 도서 목록 API가 p95 9039.51ms까지 느려지는 문제가 생겼습니다.
+AWS RDS에서 확보한 도서 데이터를 로컬 MSA 환경에 복제한 뒤, 157,118건 데이터 기준 도서 목록 API의 p95 중앙값이 2913.60ms까지 느려지는 문제를 재현했습니다.
 
 처음에는 DB 인덱스 문제를 의심했지만, Hibernate SQL과 repository 설정을 확인해 보니 `BookRepository.findAll(Pageable)`에 collection `EntityGraph(bookAuthors, bookAuthors.author)`가 적용되어 DB pagination이 아니라 메모리 pagination이 발생하는 구조였습니다.
 
 DTO projection, native query, fetch graph 분리 중에서 고민했고, 기존 서비스 코드 변경 폭이 가장 작은 fetch graph 분리가 더 낫다고 판단했습니다. 목록 조회에서는 `publisher`만 즉시 로딩하고, 저자 정보는 상세 조회 `findById`에서만 로딩하도록 분리했습니다.
 
-그 결과 같은 k6 시나리오에서 목록 조회 p95가 9039.51ms에서 51.97ms로 낮아졌고, p95 기준 약 173.94배 개선됐습니다.
+그 결과 같은 k6 목록 시나리오를 전후 각 5회 실행했을 때 p95 중앙값이 2913.60ms에서 26.96ms로 낮아졌고, 약 108.07배 개선됐습니다.
 
 근거:
 

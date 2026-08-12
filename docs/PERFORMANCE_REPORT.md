@@ -45,13 +45,13 @@ docker run --rm -i `
 
 | 구분 | 상세 조회 p95 | 목록 조회 p95 | 목록 조회 평균 | 실패율 | 요청 수 |
 |---|---:|---:|---:|---:|---:|
-| 개선 전 | 254.02ms | 9039.51ms | 6907.78ms | 0% | 160 |
-| 개선 후 | 15.24ms | 51.97ms | 44.17ms | 0% | 295 |
+| 개선 전(5회 p95 중앙값) | - | 2913.60ms | - | 0% | - |
+| 개선 후(5회 p95 중앙값) | - | 26.96ms | - | 0% | - |
 
 목록 조회 p95 기준 개선 폭:
 
 ```text
-9039.51ms / 51.97ms = 약 173.94배
+2913.60ms / 26.96ms = 약 108.07배
 ```
 
 ## 문제 원인
@@ -79,11 +79,11 @@ Optional<Book> findById(Long id);
 
 ## 결론
 
-이번 병목은 DB 인덱스 부족이 아니라 ORM fetch 전략과 pagination 조합에서 발생했다. 조회 목적별 fetch graph를 분리해 목록 조회의 불필요한 collection loading을 제거했고, p95 기준 약 174배 개선을 확인했다.
+이번 병목은 DB 인덱스 부족이 아니라 ORM fetch 전략과 pagination 조합에서 발생했다. 조회 목적별 fetch graph를 분리해 목록 조회의 불필요한 collection loading을 제거했고, 5회 p95 중앙값 기준 약 108.07배 개선을 확인했다.
 
 ## 포트폴리오 문장
 
-HighFiveBooks V2에서는 AWS RDS에서 확보한 15만 건 이상의 도서 데이터를 로컬 MSA 환경에 복제하고 k6로 도서 목록 API를 측정했습니다. 그 결과 JPA collection EntityGraph와 Pageable 조합으로 Hibernate 메모리 pagination이 발생해 목록 조회 p95가 9.03초까지 지연되는 병목을 확인했습니다. 목록 조회 fetch graph를 `publisher` 중심으로 축소해 p95를 51.96ms로 낮추며 약 174배의 응답 성능 개선을 달성했습니다.
+HighFiveBooks V2에서는 AWS RDS에서 확보한 157,118건 도서 데이터를 로컬 MSA 환경에 복제하고 k6로 도서 목록 API를 전후 각 5회 측정했습니다. JPA collection EntityGraph와 Pageable 조합의 Hibernate 메모리 pagination을 제거한 결과, 목록 조회 p95 중앙값을 2913.60ms에서 26.96ms로 낮춰 약 108.07배 개선했습니다.
 
 ## 남은 보강
 

@@ -32,8 +32,8 @@ AWS EC2/RDS를 최소 비용으로 사용해 15만 건 이상의 도서 데이�
 | 항목 | 결과 |
 |---|---:|
 | 로컬 MySQL 도서 데이터 | 157,118건 |
-| 도서 목록 조회 개선 전 p95 | 9039.51ms |
-| 도서 목록 조회 개선 후 p95 | 51.97ms |
+| 도서 목록 조회 개선 전 p95 중앙값(5회) | 2913.60ms |
+| 도서 목록 조회 개선 후 p95 중앙값(5회) | 26.96ms |
 | Docker Compose 서비스 | 5개 백엔드 + MySQL/Redis/RabbitMQ/Elasticsearch/MinIO |
 | 주문 목록 smoke 요청 수 | 10 |
 | 주문 목록 smoke checks | 100% |
@@ -52,7 +52,7 @@ AWS EC2/RDS를 최소 비용으로 사용해 15만 건 이상의 도서 데이�
 
 HighFiveBooks V2에서는 프리티어 비용 제약을 고려해 전체 서비스를 클라우드에 상시 배포하기보다, AWS EC2/RDS를 데이터 확보와 배포 구조 검증에 집중적으로 사용했습니다. RDS에 적재한 157,118건 도서 데이터를 로컬 MySQL 컨테이너로 복제하고, Docker Compose로 5개 백엔드 서비스와 MySQL, Redis, RabbitMQ, Elasticsearch, MinIO를 통합 기동하는 구조를 만들었습니다.
 
-이 환경을 기반으로 k6 성능 테스트를 수행한 결과, 도서 목록 조회에서 JPA collection EntityGraph와 Pageable 조합으로 p95가 9039.51ms까지 증가하는 병목을 확인했습니다. 목록 조회 fetch graph를 분리한 뒤 p95는 51.97ms로 낮아졌고, 클라우드에서 확보한 실제 규모 데이터가 성능 병목을 드러내는 데 핵심 역할을 했습니다.
+이 환경을 기반으로 k6 성능 테스트를 전후 각 5회 수행한 결과, 도서 목록 조회에서 JPA collection EntityGraph와 Pageable 조합의 p95 중앙값이 2913.60ms였습니다. 목록 조회 fetch graph를 분리한 뒤 26.96ms로 낮아졌고, 실제 규모 데이터가 성능 병목을 드러내는 데 핵심 역할을 했습니다.
 
 또한 Elasticsearch 한글 검색 안정성을 위해 Nori analyzer 포함 이미지를 사용하고, payment-server healthcheck용 `curl` 누락과 mail health indicator 문제를 정리해 로컬 통합 환경의 기동 안정성을 높였습니다. Docker Compose 전체 서비스가 healthy로 올라온 뒤 주문 목록 API에 대해 k6 smoke 테스트를 실행해 checks 100%, 실패율 0%, p95 15.28ms를 확인했습니다.
 

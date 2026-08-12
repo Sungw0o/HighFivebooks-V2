@@ -51,7 +51,7 @@
 
 ### 도서 조회 성능 개선
 
-157,118건 도서 데이터에서 JPA collection `EntityGraph`와 `Pageable` 조합으로 목록 조회 p95가 9039.51ms까지 느려졌고, 목록 조회 fetch graph를 `publisher` 중심으로 축소해 p95를 51.97ms로 낮췄다.
+157,118건 도서 데이터에서 JPA collection `EntityGraph`와 `Pageable` 조합의 목록 조회 p95 중앙값이 2913.60ms였고, 목록 조회 fetch graph를 `publisher` 중심으로 축소해 26.96ms로 낮췄다(전후 각 5회).
 
 ### Redis Cache
 
