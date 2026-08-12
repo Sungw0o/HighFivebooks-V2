@@ -28,7 +28,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     Optional<Member> findByIdForUpdate(@Param("id") Long id);
 
     @Query("SELECT m.id FROM Member m WHERE MONTH(m.birthDate) = :month")
-    List<Long> findAllIdsByBirthMonth(@Param("month") int month);
+    Page<Long> findAllIdsByBirthMonth(@Param("month") int month, Pageable pageable);
 
     @Query("SELECT m.id, m.loginId, m.name FROM Member m WHERE m.id IN :memberIds")
     List<Object[]> findSimpleMembers(@Param("memberIds") List<Long> memberIds);

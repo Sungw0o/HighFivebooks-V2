@@ -78,4 +78,4 @@ order-server는 Feign timeout, CircuitBreaker, NEVER_RETRY, RabbitMQ Retry/DLQ, 
 
 ## 면접용 정리
 
-HighFiveBooks는 체크리스트의 모든 항목을 억지로 넣는 프로젝트가 아니라, 주문·결제·쿠폰·재고가 얽힌 MSA에서 실제로 의미 있는 운영 문제를 골라 개선한 프로젝트다. 이미 강한 축은 도서 조회 성능 개선, Redis Lua 정합성, RabbitMQ DLQ, Feign 장애 격리, Docker/K8s 전환이다. 남은 보강은 Hikari/Tomcat/JVM/tcpdump처럼 운영 파라미터를 수치로 설명하는 쪽이다.
+HighFiveBooks는 체크리스트의 모든 항목을 억지로 넣는 프로젝트가 아니라, 주문·결제·쿠폰·재고가 얽힌 MSA에서 실제로 의미 있는 운영 문제를 골라 개선한 프로젝트다. 이미 강한 축은 도서 조회 성능 개선, Redis Lua 정합성, RabbitMQ DLQ, Feign 장애 격리, Docker Compose 기반 재현이다. 남은 보강은 Hikari/Tomcat/JVM/tcpdump처럼 운영 파라미터를 수치로 설명하는 쪽이다.

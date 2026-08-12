@@ -6,7 +6,7 @@
 
 HighFiveBooks V2의 도서 조회 API를 k6로 측정한 결과, 대용량 도서 데이터에서 목록 조회가 p95 9.03초까지 지연되는 병목을 확인했다. 원인은 `Pageable` 목록 조회에 collection `EntityGraph`가 적용되어 Hibernate가 DB pagination 대신 메모리 pagination을 수행한 것이었다.
 
-`BookRepository.findAll(Pageable)`의 fetch graph를 목록 조회에 필요한 `publisher` 중심으로 축소한 뒤 동일 k6 스크립트로 재측정했고, 목록 조회 p95는 51.96ms로 개선됐다.
+`BookRepository.findAll(Pageable)`의 fetch graph를 목록 조회에 필요한 `publisher` 중심으로 축소한 뒤 동일 k6 스크립트로 재측정했고, 목록 조회 p95는 51.97ms로 개선됐다.
 
 ## 테스트 환경
 
@@ -83,7 +83,7 @@ Optional<Book> findById(Long id);
 
 ## 포트폴리오 문장
 
-HighFiveBooks V2에서는 AWS RDS에서 확보한 15만 건 이상의 도서 데이터를 로컬 MSA 환경에 복제하고 k6로 도서 목록 API를 측정했습니다. 그 결과 JPA collection EntityGraph와 Pageable 조합으로 Hibernate 메모리 pagination이 발생해 목록 조회 p95가 9.03초까지 지연되는 병목을 확인했습니다. 목록 조회 fetch graph를 `publisher` 중심으로 축소해 p95를 51.96ms로 낮추며 약 174배의 응답 성능 개선을 달성했습니다.
+HighFiveBooks V2에서는 AWS RDS에서 확보한 157,118건의 도서 데이터를 로컬 MSA 환경에 복제하고 k6로 도서 목록 API를 측정했습니다. JPA collection `EntityGraph`와 `Pageable` 조합의 Hibernate 메모리 pagination이 목록 p95를 9.04초까지 높이는 병목을 확인했고, 목록 fetch graph를 `publisher` 중심으로 축소해 51.97ms로 낮췄습니다. 1회 동일 시나리오 측정 기준 약 174배 개선입니다.
 
 ## 남은 보강
 

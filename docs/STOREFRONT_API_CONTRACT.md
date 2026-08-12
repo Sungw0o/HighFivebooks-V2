@@ -126,7 +126,7 @@
 - **TokenDto JSON 키**: `profileComplete` (isProfileComplete 아님 — boolean getter 직렬화)
 - **비회원 장바구니**: 서버가 `guestCookie` 쿠키를 Set-Cookie로 발급 → axios `withCredentials: true` 필수
 - **X-USER-ID**: 각 서비스가 헤더를 그대로 신뢰(서비스 내 JWT 필터 없음, 구 gateway 계약).
-  임시로 프론트 인터셉터가 JWT sub를 디코드해 직접 주입. **K8s 전환 시 Ingress/BFF에서 JWT 검증 후 주입하는 구조 확정 필요** (보안상 프론트 주입은 데모 한정)
+  임시로 프론트 인터셉터가 JWT sub를 디코드해 직접 주입. **운영 환경에서는 API Gateway/BFF에서 JWT 검증 후 주입하는 구조 확정 필요** (보안상 프론트 주입은 데모 한정)
 - **BookSortType 실제 값**: `POPULAR | NEW | LOW_PRICE | HIGH_PRICE | RATING | REVIEW`
 - **Gender**: `MALE | FEMALE | UNKNOWN`, **EmailType**: `SIGNUP | RESET_PASSWORD | FIND_ID | ACTIVATE`, **ReturnReason**: `SIMPLE_CHANGE | PRODUCT_DEFECT | DELIVERY_DELAY | WRONG_DELIVERY`
 - **OrderItemResponse 실제 필드**: `{ bookTitle, quantity, price }`

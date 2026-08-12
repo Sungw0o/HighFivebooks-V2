@@ -22,6 +22,8 @@ import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -232,9 +234,10 @@ class MemberServiceImplTest {
     @DisplayName("생일자 조회 성공")
     void getBirthdayMemberIds_Success() {
         List<Long> ids = List.of(1L, 2L);
-        given(memberRepository.findAllIdsByBirthMonth(1)).willReturn(ids);
+        given(memberRepository.findAllIdsByBirthMonth(1, PageRequest.of(0, 1000)))
+                .willReturn(new PageImpl<>(ids));
 
-        List<Long> result = memberService.getBirthdayMemberIds(1);
+        List<Long> result = memberService.getBirthdayMemberIds(1, 0, 1000);
 
         assertThat(result).hasSize(2);
     }
@@ -242,7 +245,7 @@ class MemberServiceImplTest {
     @Test
     @DisplayName("생일자 조회 실패 - 잘못된 월 (13월)")
     void getBirthdayMemberIds_Fail_InvalidMonth_Over() {
-        assertThatThrownBy(() -> memberService.getBirthdayMemberIds(13))
+        assertThatThrownBy(() -> memberService.getBirthdayMemberIds(13, 0, 1000))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_VALUE);
     }
@@ -250,7 +253,23 @@ class MemberServiceImplTest {
     @Test
     @DisplayName("생일자 조회 실패 - 잘못된 월 (0월)")
     void getBirthdayMemberIds_Fail_InvalidMonth_Under() {
-        assertThatThrownBy(() -> memberService.getBirthdayMemberIds(0))
+        assertThatThrownBy(() -> memberService.getBirthdayMemberIds(0, 0, 1000))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_VALUE);
+    }
+
+    @Test
+    @DisplayName("생일자 조회 실패 - 잘못된 페이지")
+    void getBirthdayMemberIds_Fail_InvalidPage() {
+        assertThatThrownBy(() -> memberService.getBirthdayMemberIds(1, -1, 1000))
+                .isInstanceOf(BusinessException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_VALUE);
+    }
+
+    @Test
+    @DisplayName("생일자 조회 실패 - 잘못된 페이지 크기")
+    void getBirthdayMemberIds_Fail_InvalidSize() {
+        assertThatThrownBy(() -> memberService.getBirthdayMemberIds(1, 0, 0))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_VALUE);
     }

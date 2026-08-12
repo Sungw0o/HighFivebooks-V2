@@ -230,6 +230,26 @@ class StockServiceImplTest {
         verify(stockHeldRepository, never()).findAllByOrderKeyAndBook_IdIn(any(), any());
     }
 
+    @Test
+    @DisplayName("confirmStockDeduction: 동일 Confirm을 두 번 호출해도 재고는 한 번만 차감")
+    void confirmStockDeduction_DuplicateRequest_ChangesStockOnce() {
+        String orderKey = "ORDER-123";
+        String confirmKey = "CONFIRM-" + orderKey;
+        Book book = Book.builder().id(1L).stock(10).salesVolume(0L).build();
+        StockHeld held = StockHeld.builder().book(book).quantity(2).build();
+        given(idempotencyRepository.existsByIdempotencyKey(confirmKey)).willReturn(false, true);
+        given(stockHeldRepository.findAllByOrderKeyAndBook_IdIn(orderKey, List.of(1L)))
+                .willReturn(List.of(held));
+
+        stockService.confirmStockDeduction(orderKey, List.of(1L));
+        stockService.confirmStockDeduction(orderKey, List.of(1L));
+
+        assertThat(book.getStock()).isEqualTo(8);
+        assertThat(book.getSalesVolume()).isEqualTo(2L);
+        verify(stockHeldRepository, times(1)).delete(held);
+        verify(idempotencyRepository, times(1)).save(any(StockIdempotencyRecord.class));
+    }
+
     // --- restoreStock (재고 복구) 테스트 ---
 
     @Test
@@ -260,5 +280,22 @@ class StockServiceImplTest {
         assertThat(book.getSalesVolume()).isEqualTo(7L);
         
         verify(idempotencyRepository).save(any(StockIdempotencyRecord.class));
+    }
+
+    @Test
+    @DisplayName("restoreStock: 동일 Cancel을 두 번 호출해도 재고는 한 번만 복구")
+    void restoreStock_DuplicateRequest_ChangesStockOnce() {
+        String key = "RESTORE-ORDER-123";
+        Book book = Book.builder().id(1L).stock(5).salesVolume(10L).build();
+        given(idempotencyRepository.existsByIdempotencyKey(key)).willReturn(false, true);
+        given(bookRepository.findById(1L)).willReturn(Optional.of(book));
+
+        stockService.restoreStock(List.of(new StockRequest(1L, 3)), key);
+        stockService.restoreStock(List.of(new StockRequest(1L, 3)), key);
+
+        assertThat(book.getStock()).isEqualTo(8);
+        assertThat(book.getSalesVolume()).isEqualTo(7L);
+        verify(bookRepository, times(1)).findById(1L);
+        verify(idempotencyRepository, times(1)).save(any(StockIdempotencyRecord.class));
     }
 }

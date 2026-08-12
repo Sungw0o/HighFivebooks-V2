@@ -16,6 +16,7 @@ import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -100,11 +101,14 @@ public class MemberServiceImpl implements MemberService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Long> getBirthdayMemberIds(int month) {
+    public List<Long> getBirthdayMemberIds(int month, int page, int size) {
         if (month < 1 || month > 12) {
             throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
         }
-        return memberRepository.findAllIdsByBirthMonth(month);
+        if (page < 0 || size <= 0) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+        return memberRepository.findAllIdsByBirthMonth(month, PageRequest.of(page, size)).getContent();
     }
 
     @Override

@@ -115,11 +115,28 @@ class MemberControllerTest {
     @DisplayName("생일자 조회 테스트")
     void getBirthdayMemberIdsTest() throws Exception {
         List<Long> ids = List.of(1L, 2L);
-        given(memberService.getBirthdayMemberIds(1)).willReturn(ids);
+        given(memberService.getBirthdayMemberIds(1, 0, 1000)).willReturn(ids);
 
         mockMvc.perform(get("/api/members/birthday")
                         .param("month", "1"))
                 .andExpect(status().isOk());
+
+        verify(memberService).getBirthdayMemberIds(1, 0, 1000);
+    }
+
+    @Test
+    @DisplayName("생일자 조회 페이징 파라미터 테스트")
+    void getBirthdayMemberIdsWithPagingTest() throws Exception {
+        List<Long> ids = List.of(3L, 4L);
+        given(memberService.getBirthdayMemberIds(7, 2, 500)).willReturn(ids);
+
+        mockMvc.perform(get("/api/members/birthday")
+                        .param("month", "7")
+                        .param("page", "2")
+                        .param("size", "500"))
+                .andExpect(status().isOk());
+
+        verify(memberService).getBirthdayMemberIds(7, 2, 500);
     }
 
     @Test

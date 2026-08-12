@@ -14,7 +14,7 @@ HighFiveBooks V2는 기존 HighFiveBooks 팀 프로젝트를 개인 포트폴리
 
 - MSA 유지
 - `order-server` 중심 백엔드 리팩토링
-- Spring Cloud 인프라 요소를 Kubernetes-native 구조로 전환
+- 기존 Spring Cloud 기반 MSA 구조와 단일 EC2 배포 기준 유지
 - 기존 Thymeleaf 프론트를 React/Vite storefront로 대체
 
 핵심 문장:
@@ -37,7 +37,6 @@ HighFivebooks-V2/
     coupon-server/        쿠폰, 메시징/멱등성 참고
     payment-server/       결제 확인, 결제 성공 이벤트
 
-  k8s/                    Kubernetes manifests
   docs/                   계획서, 로드맵, 분석 문서
 ```
 
@@ -79,7 +78,7 @@ HighFivebooks-V2/
 - transaction boundary
 - RabbitMQ DLQ/Retry
 - scheduler lock
-- K8s manifests
+- Docker Compose와 단일 EC2 배포 구성
 - 문서/Notion 진행 로그
 
 ---
@@ -91,11 +90,9 @@ HighFivebooks-V2/
 3. 기존 `front_server`는 직접 고치지 않는다. React `apps/storefront`로 대체한다.
 4. `storefront`는 실제 사용자 쇼핑몰 프론트다.
 5. 별도 운영 콘솔은 만들지 않는다. 필요한 관리자 기능은 실제 서비스 요구에 맞는 화면으로만 추가한다.
-6. Eureka는 Kubernetes Service DNS로 대체한다.
-7. Config Server는 ConfigMap/Secret으로 대체한다.
-8. Gateway는 Ingress로 대체한다.
-9. Secret, API key, DB password, JWT secret을 코드에 직접 쓰지 않는다.
-10. `node_modules`, `dist`, `target`, `.env`는 커밋하지 않는다.
+6. Eureka, Config Server, Gateway를 포함한 기존 Spring Cloud 계약을 변경할 때는 서비스 호환성을 먼저 확인한다.
+7. Secret, API key, DB password, JWT secret을 코드에 직접 쓰지 않는다.
+8. `node_modules`, `dist`, `target`, `.env`는 커밋하지 않는다.
 
 ---
 
@@ -217,7 +214,7 @@ services/payment-server
 5. 멀티 인스턴스 스케줄러 방어
 6. Feign timeout/CircuitBreaker
 7. 통합 환경
-8. K8s 전환
+8. 단일 EC2 배포 재현
 9. storefront API 연동
 
 검증:
@@ -230,8 +227,10 @@ cd services/order-server
 기대 결과:
 
 ```text
-98 tests, 0 failures, 0 errors, 0 skipped
+132 tests, 0 failures, 0 errors, 1 skipped
 ```
+
+`RabbitMqDlqIntegrationTest`는 `RUN_RABBITMQ_INTEGRATION=true`와 실제 RabbitMQ가 있을 때 실행되므로 기본 로컬 테스트에서는 1건 skip이 정상이다.
 
 금지:
 
@@ -281,29 +280,24 @@ order-server
 
 ---
 
-## 7. Kubernetes Direction
+## 7. Deployment Direction
 
 최종 배포 단위:
 
 ```text
-storefront Deployment
-order-server Deployment
-book-server Deployment
-member-server Deployment
-coupon-server Deployment
-payment-server Deployment
-MySQL
-Redis
-RabbitMQ
-Ingress
+Ubuntu EC2
+Nginx reverse proxy
+storefront container
+gateway/config/eureka containers
+order/book/member/coupon/payment containers
+MySQL, Redis, RabbitMQ, Elasticsearch
 ```
 
-전환 규칙:
+배포 규칙:
 
-- Eureka 제거: Service DNS
-- Config Server 제거: ConfigMap/Secret
-- Gateway 제거: Ingress
-- order-server replica 2개 이상 고려
+- 기존 Eureka/Config Server/Gateway 계약 유지
+- Nginx와 로드밸런서를 통한 진입점 분리
+- order-server 다중 인스턴스 가능성 고려
 - scheduler 중복 실행 방지 고려
 
 ---
@@ -317,7 +311,7 @@ refactor/order-flow-map
 refactor/order-transaction-boundary
 refactor/payment-message-dlq
 refactor/scheduler-lock
-infra/k8s-baseline
+infra/ec2-deployment
 docs/portfolio-evidence
 ```
 
@@ -360,7 +354,7 @@ cd services/order-server
 ♻️ refactor: 주문 Feign 클라이언트 URL 설정 정리
 ✅ test: 주문 서버 컨텍스트 테스트 Rabbit 의존성 제거
 🔧 chore: 로컬 Docker Compose 설정 추가
-🚀 deploy: Kubernetes 배포 매니페스트 추가
+🚀 deploy: EC2 배포 구성 추가
 ```
 
 허용 type:

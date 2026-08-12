@@ -1,233 +1,117 @@
-# HighFiveBooks Performance Portfolio Cases
+# HighFiveBooks 문제 해결 포트폴리오
 
-작성일: 2026-07-09
+작성일: 2026-08-12
 
-이 문서는 HighFiveBooks V2를 포트폴리오와 면접에서 설명하기 위한 성능·부하·운영 사례 카드다. 수치가 확인된 항목은 그대로 사용하고, 아직 실행이 필요한 항목은 `해야됨`으로 표시한다.
+모든 사례는 `문제 → 선택 → 해결 → 검증 → 한계`로 정리한다. 상태는 자동 테스트·원시 측정 결과가 있으면 **검증 완료**, 코드나 과거 기록만 있으면 **부분 검증**, 설계만 있으면 **미검증**으로 표시한다.
 
-## 사용 기준
+## 포트폴리오 사용 가이드
 
-- `완료`: 코드, 문서, 테스트 또는 측정 수치가 로컬 레포에 남아 있다.
-- `보강 필요`: 코드/하네스는 있으나 최종 수치 캡처가 부족하다.
-- `해야됨`: 설계 방향만 있고 실제 측정이나 구현 결정이 필요하다.
+숫자마다 검증 강도가 다르다. k6 JSON이 남은 도서 조회는 직접 측정값이지만, 주문 부하는 요약 문서만 있어 “측정 기록 기준”이라고 한정한다. 생일 쿠폰 배치 수치는 원시 로그가 없어 외부 문서에 싣지 않는다.
 
-## 백엔드 5개
+면접에서는 사례를 모두 나열하지 않고 JPA pagination, TCC 멱등/보상, RabbitMQ DLQ 세 가지를 우선한다. Docker Compose와 RDS 복제는 이 실험을 가능하게 한 재현 기반으로 짧게 연결한다.
 
-### 1. 대용량 도서 목록 조회 JPA pagination 병목 개선
+각 사례의 상태는 구현량이 아니라 증거 수준을 뜻한다. “부분 검증”은 실패가 아니라 확인 범위가 단위 테스트·과거 실행 기록·구성 코드 중 일부에 머문다는 표시다. “미검증” 항목은 선택 이유와 후속 실험 계획까지만 설명하고 성과 수치로 사용하지 않는다.
 
-상태: 완료
+## 백엔드
 
-하다 보니 AWS RDS에서 확보한 도서 데이터를 로컬 MSA 환경에 복제한 뒤, 157,118건 데이터 기준 도서 목록 API가 p95 9039.51ms까지 느려지는 문제가 생겼습니다.
+### 1. JPA pagination 병목 개선
 
-처음에는 DB 인덱스 문제를 의심했지만, Hibernate SQL과 repository 설정을 확인해 보니 `BookRepository.findAll(Pageable)`에 collection `EntityGraph(bookAuthors, bookAuthors.author)`가 적용되어 DB pagination이 아니라 메모리 pagination이 발생하는 구조였습니다.
+상태: **검증 완료**
 
-DTO projection, native query, fetch graph 분리 중에서 고민했고, 기존 서비스 코드 변경 폭이 가장 작은 fetch graph 분리가 더 낫다고 판단했습니다. 목록 조회에서는 `publisher`만 즉시 로딩하고, 저자 정보는 상세 조회 `findById`에서만 로딩하도록 분리했습니다.
+- **문제**: 도서 157,118건에서 collection `EntityGraph`와 `Pageable`을 함께 사용한 목록 조회 p95가 9,039.51ms까지 증가했다.
+- **선택**: DTO projection·native query보다 기존 코드 영향이 작은 조회 목적별 fetch graph 분리를 택했다.
+- **해결**: 목록 조회는 `publisher`만 즉시 로딩하고, `bookAuthors.author`는 상세 조회에서만 로딩하도록 분리했다.
+- **검증**: 동일 k6 스크립트의 저장 결과에서 목록 p95 9,039.51ms → 51.97ms, 평균 6,907.78ms → 44.17ms, 실패율 0%를 확인했다. 1회 전후 측정 기준 약 174배다.
+- **한계**: 전후 요청 수가 160건과 295건으로 다르고 30초 측정 1회이므로, 반복 실험의 중앙값은 아니다.
 
-그 결과 같은 k6 시나리오에서 목록 조회 p95가 9039.51ms에서 51.97ms로 낮아졌고, p95 기준 약 173.94배 개선됐습니다.
+근거: `PERFORMANCE_REPORT.md`, `JPA_PERFORMANCE_REPRODUCTION.md`, `perf/results/book-read-*.json`
 
-근거:
+### 2. 생일 쿠폰 배치 조회 구조 개선
 
-- `docs/PERFORMANCE_REPORT.md`
-- `perf/results/book-read-baseline-20260708-234828.json`
-- `perf/results/book-read-optimized-20260708-235147.json`
+상태: **미검증**
 
-### 2. 생일 쿠폰 발급 배치 처리 병목 개선
+- **문제**: 생일자 조회의 `MONTH(birth_date)`가 인덱스를 활용하기 어렵고, coupon Reader가 전달한 `page/size`를 member API가 반영하지 않아 chunk 의도와 실제 조회가 달랐다.
+- **선택**: MySQL에서 예측 가능한 `birth_month` 컬럼과 `(birth_month, id)` 복합 인덱스, API pagination 정합화를 설계했다.
+- **해결**: member 생일자 API에 `page/size`를 연결하고 coupon Writer의 JDBC batch 경로를 확인했다.
+- **검증**: 코드 경로는 확인했지만 `EXPLAIN` 전후와 전체 배치 시간은 측정하지 못했다.
+- **한계**: 기존 문서의 회원 2,400만 명·대상 200만 명·4시간 이상 수치는 원시 실행 로그가 없어 이력서에서 제외한다.
 
-상태: 보강 필요
+근거: `DB_BATCH_TUNING.md`, member/coupon server 코드
 
-하다 보니 2,400만 명 회원 중 약 200만 명 대상 생일 쿠폰 발급 배치가 4시간 이상 소요되는 문제가 생겼습니다.
+### 3. 주문 생성 API 동시 사용자 안정성
 
-MySQL 실행 계획에서는 `MONTH(birth_date)` 조건 때문에 생일 회원 조회가 풀 테이블 스캔으로 동작했고, 작은 chunk와 잦은 commit, JPA 기반 쓰기 비용도 함께 병목이 됐습니다. 추가로 코드를 확인해 보니 coupon-server Reader는 `page`, `size`를 넘기고 있었지만 member-server API가 이를 받지 않아 chunk 단위 조회 의도가 실제 pagination으로 이어지지 않았습니다.
+상태: **부분 검증**
 
-query function index, generated column, 애플리케이션 관리 컬럼 중에서 고민했고, MySQL에서 안정적으로 인덱스를 태울 수 있는 `birth_month` 컬럼과 `(birth_month, id)` 복합 인덱스가 더 낫다고 판단했습니다. 우선 member-server 생일자 조회 API에 `page`, `size`를 반영해 Reader chunk와 API pagination을 맞췄고, Writer는 JDBC batch insert 경로를 확인했습니다.
+- **문제**: 주문 서버는 도서·회원·쿠폰 도메인을 호출하므로 mock 테스트만으로 통합 안정성을 설명하기 어려웠다.
+- **선택**: Docker Compose로 MSA를 기동하고 k6로 실제 주문 API를 호출했다.
+- **해결**: 비회원 주문을 1·5·10·20·50 VU 단계로 실행했다.
+- **검증**: 50 VU/2분에서 5,435건, 44.89 req/s, 실패율 0%, p95 133.29ms를 기록했다.
+- **한계**: `sleep(1)`이 있어 한계 부하가 아닌 동시 사용자 안정성 결과이며, 50 VU 원시 summary JSON이 저장소에 없다.
 
-아직 최종 수치는 `birth_month` 적용 전후 `EXPLAIN`과 배치 실행 시간 측정이 필요합니다.
+근거: `PERFORMANCE_TEST_PROGRESS_2026-07-09.md`, `perf/k6/order-create-baseline.js`
 
-근거:
+### 4. 결제 성공 이벤트 Retry/DLQ
 
-- `docs/DB_BATCH_TUNING.md`
-- `services/member-server/src/main/java/com/nhnacademy/member_server/controller/MemberController.java`
-- `services/member-server/src/main/java/com/nhnacademy/member_server/repository/MemberRepository.java`
+상태: **부분 검증**
 
-해야됨:
+- **문제**: 금액 불일치나 후처리 실패 메시지가 무한 재소비되면 정상 주문 처리까지 방해할 수 있었다.
+- **선택**: 동기 Feign 재호출이나 예외 무시 대신 RabbitMQ listener retry 후 DLQ 격리를 택했다.
+- **해결**: `payment-success-queue`에 DLX/routing key를 연결하고 `RejectAndDontRequeueRecoverer`를 적용했다.
+- **검증**: 구성·listener 단위 테스트와 수동 poison message의 DLQ 1건 기록이 있다. 실제 브로커 reject→DLQ 자동 통합 테스트도 추가했다.
+- **한계**: 현재 Docker 엔진이 꺼져 자동 통합 테스트는 조건부 skip됐고, 1,000건 처리량과 retry 로그는 미측정이다.
 
-- `MONTH(birth_date)` baseline `EXPLAIN` 캡처
-- `birth_month` 적용 후 `EXPLAIN` 캡처
-- chunk size별 처리량과 전체 배치 시간 측정
+근거: `RabbitMqConfigTest`, `PaymentMessageListenerTest`, `RabbitMqDlqIntegrationTest`
 
-### 3. 주문 생성 API 동시 사용자 안정성 검증
+### 5. TCC Confirm/Cancel 멱등성과 실패 보상
 
-상태: 완료
+상태: **부분 검증**
 
-하다 보니 주문 서버가 book, member, coupon, payment 도메인과 모두 통신해서 단위 테스트만으로는 실제 주문 생성 안정성을 설명하기 어려운 문제가 생겼습니다.
+- **문제**: 결제 이벤트·취소 요청 중복이나 timeout은 재고·포인트를 이중 반영하거나 부분 보상 상태를 만들 수 있다.
+- **선택**: 주문 상태 gate와 도메인별 idempotency key를 유지하고 실패 지점을 테스트로 고정했다.
+- **해결**: 재고 Confirm은 `CONFIRM-{orderKey}`, Restore는 요청 키, 포인트는 주문 거래 상태로 중복을 차단한다. 주문 Cancel은 이미 `CANCELED`면 종료한다.
+- **검증**: 중복 Confirm/Cancel, 포인트 Cancel 실패, 결제 Cancel timeout, 재고 Confirm/Restore 1회 변경 테스트가 통과했다.
+- **한계**: 외부 보상 완료 단계를 영속화하지 않아 동시 요청·응답 유실·프로세스 종료에 대한 durable retry는 없다.
 
-Controller 단위 테스트, 서비스 mock 테스트, Docker Compose 통합 부하 테스트 중에서 고민했고, 포트폴리오 근거로는 로컬 MSA를 모두 띄운 상태에서 k6로 주문 API를 직접 호출하는 방식이 더 낫다고 판단했습니다.
+근거: `TCC_FAILURE_MATRIX.md`, order/book/member 테스트
 
-비회원 주문 생성 시나리오를 기준으로 1, 5, 10, 20, 50 VU 단계 테스트를 실행했고, 50 VU / 2분 기준 5435건 요청, 실패율 0%, p95 133.29ms를 확인했습니다.
+## 클라우드·플랫폼
 
-근거:
+### 6. RDS 데이터의 로컬 재현
 
-- `docs/PERFORMANCE_TEST_PROGRESS_2026-07-09.md`
-- `perf/k6/order-create-baseline.js`
+상태: **검증 완료**
 
-보강 필요:
+- **문제**: 작은 seed로는 ORM pagination과 검색 I/O 병목이 드러나지 않았다.
+- **선택**: 전체 서비스를 상시 클라우드에 두지 않고 RDS 데이터를 dump로 로컬에 복제했다.
+- **해결**: `mysqldump` 압축 덤프와 PowerShell import 흐름을 구성했다.
+- **검증**: 로컬 MySQL의 도서 157,118건으로 k6 전후 결과를 저장해 JPA 병목을 재현했다.
+- **한계**: dump import 시간과 테이블별 row count 캡처는 남아 있지 않다.
 
-- 회원 주문, 쿠폰, 포인트 사용을 포함한 확장 시나리오
-- summary export JSON 파일 저장
+근거: `PERFORMANCE_REPORT.md`, `scripts/import-book-dump.ps1`
 
-### 4. 결제 성공 이벤트 Retry/DLQ 격리
+### 7. Docker Compose MSA 실행 안정화
 
-상태: 완료
+상태: **부분 검증**
 
-하다 보니 결제 성공 이후 금액 불일치나 후처리 실패 메시지가 들어오면 같은 메시지를 계속 재소비하거나 주문 상태 변경 흐름에 장애가 전파될 수 있는 문제가 생겼습니다.
+- **문제**: 서비스별 수동 실행은 주문·결제·재고 흐름 재현이 느리고 환경 차이에 취약했다.
+- **선택**: 빠른 반복 실험과 서비스 간 연동 재현을 위해 Docker Compose를 사용했다.
+- **해결**: 5개 백엔드와 MySQL·Redis·RabbitMQ·Elasticsearch·MinIO를 묶고 Nori 이미지, mail health, payment `curl` 문제를 정리했다.
+- **검증**: 과거 전체 healthy와 책 API 조회 기록이 있다.
+- **한계**: 이번 세션에는 Docker 엔진이 없어 새 PC 기준 재현을 다시 실행하지 못했다.
 
-Feign 동기 호출로 결제 성공을 처리하는 방식, listener에서 예외를 삼키는 방식, RabbitMQ retry/DLQ로 격리하는 방식 중에서 고민했고, 결제 성공 이벤트는 재처리 가능한 비동기 흐름이므로 RabbitMQ retry/DLQ가 더 낫다고 판단했습니다.
+근거: `LOCAL_REPRODUCIBILITY.md`, Compose와 실행 스크립트
 
-`payment-success-queue`에 dead-letter exchange와 routing key를 붙이고, listener retry 이후 `RejectAndDontRequeueRecoverer`로 DLQ에 격리되도록 구성했습니다. 정상 메시지는 주문 상태를 `PAYMENT_WAITING`에서 `PREPARING`으로 변경했고, 금액 불일치 메시지는 DLQ 1건 이동을 확인했습니다.
+## 핵심 기술
 
-근거:
+Java 21, Spring Boot 3.5.7, Spring Data JPA, OpenFeign/Resilience4j, RabbitMQ, MySQL, Redis, Elasticsearch, Docker Compose, JUnit 5·Mockito·k6.
 
-- `docs/PERFORMANCE_TEST_PROGRESS_2026-07-09.md`
-- `docs/order-resilience-evidence.md`
-- `services/order-server/src/main/java/com/nhnacademy/order_server/config/RabbitMqConfig.java`
-- `scripts/publish-payment-success.ps1`
-- `scripts/show-rabbit-queues.ps1`
+기술은 전체 나열보다 사례별 선택 이유와 검증 근거를 우선하며, 실제 실행 근거가 부족한 기술은 핵심 목록에서 제외한다.
 
-보강 필요:
+## 검증 요약
 
-- 1000건 이상 메시지 처리량 측정
-- retry 횟수와 DLQ 이동 로그 캡처
+| 상태 | 사례 | 외부 표현 |
+|---|---|---|
+| 검증 완료 | JPA pagination, RDS 데이터 재현 | 저장된 수치와 확인 범위를 그대로 사용 |
+| 부분 검증 | 주문 부하, RabbitMQ DLQ, TCC, Compose | “구성/단위 테스트/당시 실행 기록 기준”을 함께 표기 |
+| 미검증 | 생일 쿠폰 배치 최종 성능 | 문제와 설계만 설명하고 개선 수치 제외 |
 
-### 5. 재고 선점·확정·복구 멱등성 검증
-
-상태: 보강 필요
-
-하다 보니 주문 생성과 결제 성공 사이에 재고를 언제 차감할지 명확하지 않으면, 결제 실패나 중복 이벤트에서 재고가 두 번 차감되거나 복구되지 않는 문제가 생겼습니다.
-
-주문 생성 시 즉시 차감, 결제 성공 후 차감, 선점 후 확정/복구 방식 중에서 고민했고, 결제 전 이탈과 실패 보상을 고려하면 선점 후 확정/복구 방식이 더 낫다고 판단했습니다.
-
-현재 book-server에는 `StockHeld`와 `StockIdempotencyRecord`가 있어 선점, 확정, 복구의 멱등성 근거를 남길 수 있습니다. 다만 실제 동시성 수치로 말하려면 주문 생성 실패 보상, 결제 성공 중복 메시지, 취소/반품 복구를 각각 k6 또는 통합 테스트로 측정해야 합니다.
-
-근거:
-
-- `docs/order-flow-boundary-map.md`
-- `services/book-server/src/main/java/com/nhnacademy/book_server/entity/StockHeld.java`
-- `services/book-server/src/main/java/com/nhnacademy/book_server/entity/StockIdempotencyRecord.java`
-
-해야됨:
-
-- 중복 결제 성공 메시지에서 재고 차감 1회 검증
-- 주문 취소/반품 복구 중복 요청에서 재고 복구 1회 검증
-- 최종 재고 수량 검증 SQL 캡처
-
-## 클라우드 / 인프라 5개
-
-### 1. RDS 대용량 도서 데이터 확보 및 로컬 복제
-
-상태: 완료
-
-하다 보니 작은 seed 데이터만으로는 JPA fetch, pagination, 검색 인덱스, DB I/O 병목이 드러나지 않는 문제가 생겼습니다.
-
-전체 서비스를 클라우드에 계속 띄우는 방식, 로컬 seed만 쓰는 방식, RDS에서 필요한 도서 데이터만 확보해 로컬로 복제하는 방식 중에서 고민했고, 프리티어 비용과 반복 실험 속도를 고려하면 RDS 데이터 확보 후 로컬 복제가 더 낫다고 판단했습니다.
-
-그 결과 로컬 MySQL에서 157,118건 도서 데이터를 기준으로 k6 성능 테스트를 수행할 수 있었고, 실제로 도서 목록 p95 9.03초 병목을 찾아냈습니다.
-
-근거:
-
-- `docs/PERFORMANCE_REPORT.md`
-- `scripts/import-book-dump.ps1`
-
-보강 필요:
-
-- dump 파일명, import 시간, 테이블별 row count 캡처
-
-### 2. Docker Compose 기반 MSA 통합 실행 안정화
-
-상태: 완료
-
-하다 보니 서버를 각각 직접 실행하면 주문, 결제, 재고, 쿠폰, 포인트 흐름을 한 번에 재현하기 어렵고, 환경 차이 때문에 다른 컴퓨터에서 같은 테스트를 반복하기 어려운 문제가 생겼습니다.
-
-개별 IDE 실행, Kubernetes 선전환, Docker Compose 통합 실행 중에서 고민했고, 로컬에서 빠르게 반복 측정하려면 Compose가 더 낫다고 판단했습니다.
-
-MySQL, Redis, RabbitMQ, Elasticsearch, MinIO와 5개 백엔드 서비스를 Compose로 묶고, `.env.example`, `local-up.ps1`, `build-services.ps1`, `LOCAL_REPRODUCIBILITY.md`를 정리했습니다. payment-server healthcheck용 `curl` 누락, mail health indicator, Elasticsearch Nori 이미지 문제도 실행 과정에서 정리했습니다.
-
-근거:
-
-- `docker-compose.yml`
-- `docs/LOCAL_REPRODUCIBILITY.md`
-- `scripts/local-up.ps1`
-- `scripts/build-services.ps1`
-
-보강 필요:
-
-- 새 PC에서 `git clone -> .env -> docker compose up` 검증 캡처
-
-### 3. Elasticsearch Nori 검색 인프라 환경 일관성 확보
-
-상태: 보강 필요
-
-하다 보니 기본 Elasticsearch 이미지만 사용하면 한글 검색 분석기가 환경마다 다르게 동작하거나 Nori plugin 누락으로 검색 품질과 인덱스 생성이 흔들리는 문제가 생겼습니다.
-
-컨테이너 시작 시 plugin 설치, 별도 커스텀 이미지, 검색 기능을 로컬에서 제외하는 방식 중에서 고민했고, Compose와 K8s에서 같은 이미지를 쓰는 커스텀 이미지 방식이 더 낫다고 판단했습니다.
-
-현재 Nori plugin 포함 이미지를 기준으로 환경을 맞추는 방향은 정리됐지만, 검색 API 자체의 before/after p95와 analyzer 결과 캡처는 아직 필요합니다.
-
-근거:
-
-- `docker-compose.yml`
-- `services/book-server/src/main/resources/Elastic/analysis/high-five.json`
-- `services/book-server/src/main/resources/Elastic/analysis/synonyms.txt`
-
-해야됨:
-
-- Nori plugin 설치 확인 API 캡처
-- 검색 API k6 측정
-- analyzer 결과 샘플 캡처
-
-### 4. Kubernetes 전환 smoke, readiness, ingress 검증
-
-상태: 보강 필요
-
-하다 보니 Pod가 `Running`이어도 DB, RabbitMQ, Elasticsearch 같은 의존성이 준비되지 않아 실제 API 요청을 받을 수 없는 문제가 생겼습니다.
-
-단순 `kubectl get pods`, 수동 curl, smoke script 방식 중에서 고민했고, 전환 근거로는 rollout, readiness, Service DNS, Ingress 접근을 한 번에 확인하는 smoke script가 더 낫다고 판단했습니다.
-
-현재 `k8s/base`, `k8s/rollouts`, `scripts/k8s-smoke.ps1`, `docs/k8s-transition-runbook.md`는 준비되어 있습니다. 다만 현재 세션에서는 K8s endpoint가 떠 있지 않아 최신 smoke 결과 캡처는 아직 필요합니다.
-
-근거:
-
-- `docs/k8s-transition-runbook.md`
-- `docs/k8s-smoke-evidence.md`
-- `scripts/k8s-smoke.ps1`
-- `k8s/base`
-
-해야됨:
-
-- `kubectl kustomize k8s/base` 결과 캡처
-- `scripts/k8s-smoke.ps1` 최신 실행 결과 캡처
-- Ingress 기준 API curl 캡처
-
-### 5. Cloudflare + S3 + EC2 Ingress + RDS 배포 구조 분리
-
-상태: 해야됨
-
-하다 보니 React 정적 파일과 API 트래픽을 같은 EC2 경로로 처리하면 프리티어 EC2가 정적 리소스까지 떠안고, TLS, CDN, WAF, DNS 책임도 한 서버에 몰리는 문제가 생깁니다.
-
-EC2 단일 nginx, S3 정적 호스팅 + EC2 API, Cloudflare 앞단 분리 중에서 고민했고, 비용과 운영 책임 분리를 고려하면 `Cloudflare /* -> S3`, `Cloudflare /api/* -> EC2 public -> nginx Ingress -> k8s service -> RDS` 구조가 더 낫다고 판단했습니다.
-
-현재 구조도와 문서 설계는 끝났고, 실제 배포는 비용과 도메인 설정 확인 후 진행해야 합니다.
-
-근거:
-
-- `docs/assets/highfivebooks-architecture.svg`
-- `README.md`
-
-해야됨:
-
-- S3 정적 배포
-- Cloudflare DNS, TLS, cache rule 설정
-- `/api/*` origin routing 확인
-- EC2 Ingress 접근 로그 캡처
-
-## 한 줄 요약
-
-현재 바로 강하게 말할 수 있는 항목은 도서 조회 성능 개선, 주문 생성 API 부하 테스트, RabbitMQ DLQ 격리, RDS 데이터 복제, Docker Compose 재현 환경이다. 생일 쿠폰 배치, 재고 멱등성, Elasticsearch 검색, K8s smoke, Cloudflare 배포는 코드와 계획은 있으나 최종 수치 또는 캡처가 더 필요하다.
+최종 한 줄은 다음 범위가 안전하다. “실제 규모 데이터로 JPA pagination 병목을 재현·개선하고, 주문 TCC 멱등성과 RabbitMQ DLQ를 테스트했습니다.” 이 문장은 자동 보상 완성이나 운영 SLO까지 주장하지 않는다.
