@@ -6,7 +6,7 @@
 
 HighFiveBooks V2의 도서 조회 API를 k6로 측정한 결과, 대용량 도서 데이터에서 목록 조회가 p95 9.03초까지 지연되는 병목을 확인했다. 원인은 `Pageable` 목록 조회에 collection `EntityGraph`가 적용되어 Hibernate가 DB pagination 대신 메모리 pagination을 수행한 것이었다.
 
-`BookRepository.findAll(Pageable)`의 fetch graph를 목록 조회에 필요한 `publisher` 중심으로 축소한 뒤 동일 k6 스크립트로 재측정했고, 목록 조회 p95는 51.96ms로 개선됐다.
+`BookRepository.findAll(Pageable)`의 fetch graph를 목록 조회에 필요한 `publisher` 중심으로 축소한 뒤 동일 k6 목록 시나리오를 전후 각 5회 재측정했고, 목록 조회 p95 중앙값은 26.96ms로 개선됐다.
 
 ## 테스트 환경
 
