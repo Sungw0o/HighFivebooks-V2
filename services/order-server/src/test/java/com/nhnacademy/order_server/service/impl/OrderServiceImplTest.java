@@ -24,6 +24,7 @@ import com.nhnacademy.order_server.dto.OrderCalculationData;
 import com.nhnacademy.order_server.dto.message.PaymentSuccessMessage;
 import com.nhnacademy.order_server.dto.request.CouponCalculationRequest;
 import com.nhnacademy.order_server.dto.request.OrderCreateRequest;
+import com.nhnacademy.order_server.dto.request.PaymentCancelRequest;
 import com.nhnacademy.order_server.dto.request.PointEarnRequest;
 import com.nhnacademy.order_server.dto.request.PointTransactionRequest;
 import com.nhnacademy.order_server.dto.response.CouponCalculationResponse;
@@ -52,6 +53,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -309,13 +311,45 @@ class OrderServiceImplTest {
         @Test
         @DisplayName("무시: 결제 대기 상태가 아니면 무시")
         void ignore_NotWaiting() {
-            Order order = Order.builder().id(1L).deliveryStatus(DeliveryStatus.CANCELED).build();
+            Order order = Order.builder().id(1L).deliveryStatus(DeliveryStatus.PREPARING).build();
             given(orderRepository.findByIdWithItems(1L)).willReturn(Optional.of(order));
 
             PaymentSuccessMessage msg = PaymentSuccessMessage.builder().orderId(1L).build();
             orderService.processPaymentSuccessMessage(msg);
 
             verify(couponClient, never()).useCoupon(any(), any());
+            verify(paymentClient, never()).cancelPayment(any(), any());
+        }
+
+        @Test
+        @DisplayName("환불: 결제 전에 취소된 주문에 승인이 늦게 오면 결제를 취소하고 확정하지 않는다")
+        void refund_WhenPaidAfterCanceled() {
+            Order order = Order.builder().id(1L).deliveryStatus(DeliveryStatus.CANCELED).paymentAmount(30000).build();
+            given(orderRepository.findByIdWithItems(1L)).willReturn(Optional.of(order));
+            PaymentSuccessMessage msg = PaymentSuccessMessage.builder()
+                    .orderId(1L).paymentKey("pg").totalAmount(30000L).build();
+
+            orderService.processPaymentSuccessMessage(msg);
+
+            ArgumentCaptor<PaymentCancelRequest> captor = ArgumentCaptor.forClass(PaymentCancelRequest.class);
+            verify(paymentClient).cancelPayment(eq("pg"), captor.capture());
+            assertThat(captor.getValue().getCancelAmount()).isEqualTo(30000);
+            verify(couponClient, never()).useCoupon(any(), any());
+            verify(orderStatusMutationService, never()).markPaymentSuccess(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("무시: 결제 후 취소된 주문은 이미 환불됐으므로 다시 환불하지 않는다")
+        void ignore_WhenCanceledAfterPayment() {
+            Order order = Order.builder().id(1L).deliveryStatus(DeliveryStatus.CANCELED).build();
+            order.setPaymentKey("pg");
+            given(orderRepository.findByIdWithItems(1L)).willReturn(Optional.of(order));
+            PaymentSuccessMessage msg = PaymentSuccessMessage.builder()
+                    .orderId(1L).paymentKey("pg").totalAmount(30000L).build();
+
+            orderService.processPaymentSuccessMessage(msg);
+
+            verify(paymentClient, never()).cancelPayment(any(), any());
         }
 
         @Test

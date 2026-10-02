@@ -3,6 +3,7 @@ package com.nhnacademy.order_server.service.impl;
 import com.nhnacademy.order_server.adapter.BookClient;
 import com.nhnacademy.order_server.adapter.CouponClient;
 import com.nhnacademy.order_server.adapter.MemberClient;
+import com.nhnacademy.order_server.adapter.PaymentClient;
 import com.nhnacademy.order_server.dto.OrderCalculationData;
 import com.nhnacademy.order_server.dto.OrderCancellationData;
 import com.nhnacademy.order_server.dto.PaymentSuccessProcessingData;
@@ -10,6 +11,7 @@ import com.nhnacademy.order_server.dto.message.PaymentSuccessMessage;
 import com.nhnacademy.order_server.dto.request.CouponCalculationRequest;
 import com.nhnacademy.order_server.dto.request.MemberCouponUseRequest;
 import com.nhnacademy.order_server.dto.request.OrderCreateRequest;
+import com.nhnacademy.order_server.dto.request.PaymentCancelRequest;
 import com.nhnacademy.order_server.dto.request.PointEarnRequest;
 import com.nhnacademy.order_server.dto.request.PointTransactionRequest;
 import com.nhnacademy.order_server.dto.request.StockRequest;
@@ -60,6 +62,7 @@ public class OrderServiceImpl implements OrderService {
     private final BookClient bookClient;
     private final CouponClient couponClient;
     private final MemberClient memberClient;
+    private final PaymentClient paymentClient;
     private final RabbitTemplate rabbitTemplate;
     private final PasswordEncoder passwordEncoder;
     private final OrderCreateService orderCreateService;
@@ -157,6 +160,13 @@ public class OrderServiceImpl implements OrderService {
         Order order = orderRepository.findByIdWithItems(message.getOrderId())
                 .orElseThrow(() -> new OrderException(OrderErrorCode.ORDER_NOT_FOUND));
 
+        if (order.getDeliveryStatus() == DeliveryStatus.CANCELED && order.getPaymentKey() == null) {
+            // 결제 전에 취소된 주문에 승인이 늦게 도착했다. 확정하지 않고 결제만 되돌린다.
+            // paymentKey가 있으면 결제 후 취소라 OrderCancelService가 이미 환불했다.
+            refundLatePayment(order.getId(), message);
+            return;
+        }
+
         if (order.getDeliveryStatus() != DeliveryStatus.PAYMENT_WAITING) {
             return;
         }
@@ -173,6 +183,14 @@ public class OrderServiceImpl implements OrderService {
 
         finalizeExternalResources(data);
         orderStatusMutationService.markPaymentSuccess(data.orderId(), message.getPaymentKey(), data.paymentAmount());
+    }
+
+    private void refundLatePayment(Long orderId, PaymentSuccessMessage message) {
+        log.warn("Payment succeeded after order was canceled. Refunding: orderId={}, paymentKey={}",
+                orderId, message.getPaymentKey());
+        // 실패하면 예외가 그대로 나가 RabbitMQ 재시도와 DLQ가 환불을 다시 시도한다.
+        paymentClient.cancelPayment(message.getPaymentKey(),
+                new PaymentCancelRequest("주문 취소 후 결제 승인", message.getTotalAmount().intValue()));
     }
 
     @Override
