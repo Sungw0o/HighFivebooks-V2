@@ -15,12 +15,15 @@ import com.nhnacademy.order_server.entity.Order;
 import com.nhnacademy.order_server.entity.OrderItem;
 import com.nhnacademy.order_server.repository.DeliveryRepository;
 import com.nhnacademy.order_server.repository.OrderRepository;
+import com.nhnacademy.order_server.observability.OrderCreateMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -36,9 +39,10 @@ class OrderCreateServiceTest {
     @Mock private MemberClient memberClient;
     @Mock private CartClient cartClient;
     @Mock private PasswordEncoder passwordEncoder;
+    @Spy private OrderCreateMetrics orderCreateMetrics = new OrderCreateMetrics(new SimpleMeterRegistry());
 
     @Test
-    @DisplayName("성공: 주문 생성 및 저장, 장바구니 삭제")
+    @DisplayName("성공: 주문 및 배송 정보 저장")
     void createOrderInTransaction_Success() {
         // Given
         OrderCreateRequest request = new OrderCreateRequest();
@@ -77,7 +81,13 @@ class OrderCreateServiceTest {
                         req.getAmount() == 1000 &&
                         req.getOrderId() == 1L
         ));
-        // 4. 장바구니 비우기 검증
-        verify(cartClient).clearCart((100L));
+    }
+
+    @Test
+    @DisplayName("커밋 후 회원 장바구니를 비운다")
+    void clearCartAfterCommit_Member() {
+        orderCreateService.clearCartAfterCommit(100L);
+
+        verify(cartClient).clearCart(100L);
     }
 }

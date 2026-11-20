@@ -28,6 +28,7 @@ import com.nhnacademy.order_server.exception.OrderErrorCode;
 import com.nhnacademy.order_server.exception.OrderException;
 import com.nhnacademy.order_server.repository.OrderRepository;
 import com.nhnacademy.order_server.repository.WrapperRepository;
+import com.nhnacademy.order_server.observability.OrderCreateMetrics;
 import com.nhnacademy.order_server.service.DeliveryService;
 import com.nhnacademy.order_server.service.OrderService;
 import java.time.LocalDateTime;
@@ -65,6 +66,8 @@ public class OrderServiceImpl implements OrderService {
     private final OrderCreateService orderCreateService;
     private final OrderCancelService orderCancelService;
     private final OrderStatusMutationService orderStatusMutationService;
+    private final MemberGradeCacheService memberGradeCacheService;
+    private final OrderCreateMetrics orderCreateMetrics;
 
     // =====================================================================================
     // 1. CREATE
@@ -72,18 +75,25 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderCreateResponse createOrder(OrderCreateRequest request) {
-        String orderKey = UUID.randomUUID().toString();
-        double earnRate = getMemberEarnRate(request.getUserId());
-        OrderCalculationData orderData = processOrderItemsAndHoldStock(request, earnRate, orderKey);
-        int deliveryFee = calculateDeliveryFee(orderData.totalProductAmount(), request.getReceiverAddress());
-        OrderCreateRequest.OrderCalculationResult result = calculateFinalAmounts(request, orderData, deliveryFee);
+        return orderCreateMetrics.record("total", () -> {
+            String orderKey = UUID.randomUUID().toString();
+            double earnRate = orderCreateMetrics.record("member_grade", () -> getMemberEarnRate(request.getUserId()));
+            OrderCalculationData orderData = processOrderItemsAndHoldStock(request, earnRate, orderKey);
+            int deliveryFee = orderCreateMetrics.record("delivery_fee",
+                    () -> calculateDeliveryFee(orderData.totalProductAmount(), request.getReceiverAddress()));
+            OrderCreateRequest.OrderCalculationResult result = calculateFinalAmounts(request, orderData, deliveryFee);
 
-        try {
-            return orderCreateService.createOrderInTransaction(request, orderKey, orderData, result);
-        } catch (Exception e) {
-            compensateTransaction(request.getUserId(), request.getUsedPoint(), orderData, orderKey);
-            throw e;
-        }
+            OrderCreateResponse response;
+            try {
+                response = orderCreateMetrics.record("transaction_total",
+                        () -> orderCreateService.createOrderInTransaction(request, orderKey, orderData, result));
+            } catch (Exception e) {
+                compensateTransaction(request.getUserId(), request.getUsedPoint(), orderData, orderKey);
+                throw e;
+            }
+            orderCreateService.clearCartAfterCommit(request.getUserId());
+            return response;
+        });
     }
 
 
@@ -238,8 +248,9 @@ public class OrderServiceImpl implements OrderService {
             return 0.0;
         }
         try {
-            return memberClient.getMemberGrade(userId).getEarnRate();
+            return memberGradeCacheService.getEarnRate(userId);
         } catch (Exception e) {
+            log.warn("회원 적립률 조회 실패로 기본값을 적용합니다. userId={}", userId, e);
             return 0.0;
         }
     }
@@ -265,7 +276,7 @@ public class OrderServiceImpl implements OrderService {
                     .key(UUID.randomUUID().toString()).build());
             stockRequests.add(new StockRequest(book.getBookId(), item.getQuantity()));
         }
-        bookClient.holdStockBatch(stockRequests, orderKey);
+        orderCreateMetrics.record("stock_hold", () -> bookClient.holdStockBatch(stockRequests, orderKey));
         return OrderCalculationData.builder().tempOrderItems(finalOrderItems).totalProductAmount(totalAmount)
                 .totalWrappingFee(totalWrappingFee).totalEarnedPoint((int) (totalAmount * earnRate))
                 .firstBookTitle(finalOrderItems.getFirst().getBookTitle()).build();
@@ -294,8 +305,9 @@ public class OrderServiceImpl implements OrderService {
             return 0;
         }
         try {
-            CouponCalculationResponse resp = couponClient.calculateCoupon(request.getUserId(),
-                    new CouponCalculationRequest(request.getCouponId(), (long) totalAmount));
+            CouponCalculationResponse resp = orderCreateMetrics.record("coupon_calculation",
+                    () -> couponClient.calculateCoupon(request.getUserId(),
+                            new CouponCalculationRequest(request.getCouponId(), (long) totalAmount)));
             return resp.getDiscountAmount().intValue();
         } catch (Exception e) {
             throw new OrderException(OrderErrorCode.COUPON_SERVICE_ERROR);
@@ -363,9 +375,10 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private Map<Long, BookInfoResponse> getBookInfoMap(List<OrderCreateRequest.OrderItemRequest> items) {
-        return Objects.requireNonNull(bookClient.getBooksBulk(
-                        items.stream().map(OrderCreateRequest.OrderItemRequest::getBookId).distinct().toList()).getBody())
-                .stream().collect(Collectors.toMap(BookInfoResponse::getBookId, Function.identity()));
+        return orderCreateMetrics.record("book_info", () -> Objects.requireNonNull(bookClient.getBooksBulk(
+                                items.stream().map(OrderCreateRequest.OrderItemRequest::getBookId).distinct().toList())
+                        .getBody()).stream()
+                .collect(Collectors.toMap(BookInfoResponse::getBookId, Function.identity())));
     }
 
     private Map<Long, Wrapper> getWrapperMap(List<OrderCreateRequest.OrderItemRequest> items) {
@@ -374,8 +387,8 @@ public class OrderServiceImpl implements OrderService {
         if (ids.isEmpty()) {
             return Collections.emptyMap();
         }
-        return wrapperRepository.findAllById(ids).stream()
-                .collect(Collectors.toMap(Wrapper::getId, Function.identity()));
+        return orderCreateMetrics.record("wrapper_db", () -> wrapperRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Wrapper::getId, Function.identity())));
     }
 
     private int calculateDeliveryFee(int amount, String addr) {

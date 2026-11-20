@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -30,7 +31,6 @@ import com.nhnacademy.order_server.dto.response.CouponCalculationResponse;
 import com.nhnacademy.order_server.dto.response.OrderCreateResponse;
 import com.nhnacademy.order_server.dto.response.OrderValidationInfoResponse;
 import com.nhnacademy.order_server.dto.response.external.BookInfoResponse;
-import com.nhnacademy.order_server.dto.response.external.MemberGradeResponse;
 import com.nhnacademy.order_server.entity.Delivery;
 import com.nhnacademy.order_server.entity.Order;
 import com.nhnacademy.order_server.entity.OrderItem;
@@ -40,6 +40,8 @@ import com.nhnacademy.order_server.exception.OrderErrorCode;
 import com.nhnacademy.order_server.exception.OrderException;
 import com.nhnacademy.order_server.repository.OrderRepository;
 import com.nhnacademy.order_server.repository.WrapperRepository;
+import com.nhnacademy.order_server.observability.OrderCreateMetrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import com.nhnacademy.order_server.service.DeliveryService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -53,7 +55,9 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.InOrder;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.PageImpl;
@@ -76,15 +80,16 @@ class OrderServiceImplTest {
     @Mock private BookClient bookClient;
     @Mock private CouponClient couponClient;
     @Mock private MemberClient memberClient;
+    @Mock private MemberGradeCacheService memberGradeCacheService;
     @Mock private PaymentClient paymentClient;
     @Mock private RabbitTemplate rabbitTemplate;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private OrderStatusMutationService orderStatusMutationService;
+    @Spy private OrderCreateMetrics orderCreateMetrics = new OrderCreateMetrics(new SimpleMeterRegistry());
 
     private OrderCreateRequest request;
     private Wrapper mockWrapper;
     private BookInfoResponse mockBookInfo;
-    private MemberGradeResponse mockGradeResponse;
 
     @BeforeEach
     void setUp() {
@@ -95,9 +100,6 @@ class OrderServiceImplTest {
         ReflectionTestUtils.setField(mockBookInfo, "bookId", 1L);
         ReflectionTestUtils.setField(mockBookInfo, "price", 15000);
         ReflectionTestUtils.setField(mockBookInfo, "title", "자바의 정석");
-
-        mockGradeResponse = new MemberGradeResponse();
-        ReflectionTestUtils.setField(mockGradeResponse, "earnRate", 0.05);
 
         OrderCreateRequest.OrderItemRequest itemReq = new OrderCreateRequest.OrderItemRequest();
         ReflectionTestUtils.setField(itemReq, "bookId", 1L);
@@ -122,7 +124,7 @@ class OrderServiceImplTest {
         void success_Member() {
             ReflectionTestUtils.setField(request, "couponId", 10L);
 
-            given(memberClient.getMemberGrade(anyLong())).willReturn(mockGradeResponse);
+            given(memberGradeCacheService.getEarnRate(anyLong())).willReturn(0.05);
             given(bookClient.getBooksBulk(anyList())).willReturn(ResponseEntity.ok(List.of(mockBookInfo)));
             given(wrapperRepository.findAllById(any())).willReturn(List.of(mockWrapper));
             given(deliveryService.calculateDeliveryFee(anyInt(), anyString())).willReturn(3000);
@@ -141,13 +143,16 @@ class OrderServiceImplTest {
 
             assertThat(response).isEqualTo(expectedResponse);
             verify(bookClient).holdStockBatch(anyList(), anyString());
-            verify(orderCreateService).createOrderInTransaction(any(), anyString(), any(), any());
+            InOrder commitThenCart = inOrder(orderCreateService);
+            commitThenCart.verify(orderCreateService)
+                    .createOrderInTransaction(any(), anyString(), any(), any());
+            commitThenCart.verify(orderCreateService).clearCartAfterCommit(100L);
         }
 
         @Test
         @DisplayName("실패: OrderCreateService 실패 시 보상 트랜잭션 실행")
         void fail_CompensateTransaction() {
-            given(memberClient.getMemberGrade(anyLong())).willReturn(mockGradeResponse);
+            given(memberGradeCacheService.getEarnRate(anyLong())).willReturn(0.05);
             given(bookClient.getBooksBulk(anyList())).willReturn(ResponseEntity.ok(List.of(mockBookInfo)));
             given(wrapperRepository.findAllById(any())).willReturn(List.of(mockWrapper));
 
@@ -157,6 +162,7 @@ class OrderServiceImplTest {
             assertThatThrownBy(() -> orderService.createOrder(request))
                     .isInstanceOf(RuntimeException.class);
 
+            verify(orderCreateService, never()).clearCartAfterCommit(anyLong());
             verify(bookClient).releaseHeldStock(anyList(), anyString());
             verify(memberClient).cancelPoint(argThat(req ->
                     req.getMemberId().equals(100L) &&
@@ -168,7 +174,7 @@ class OrderServiceImplTest {
         @Test
         @DisplayName("분기 커버: 보상 트랜잭션 중 예외 발생 시 무시하고 진행 (try-catch)")
         void fail_CompensateTransaction_ExceptionIgnored() {
-            given(memberClient.getMemberGrade(anyLong())).willReturn(mockGradeResponse);
+            given(memberGradeCacheService.getEarnRate(anyLong())).willReturn(0.05);
             given(bookClient.getBooksBulk(anyList())).willReturn(ResponseEntity.ok(List.of(mockBookInfo)));
             given(wrapperRepository.findAllById(any())).willReturn(List.of(mockWrapper));
 
@@ -189,7 +195,7 @@ class OrderServiceImplTest {
         @Test
         @DisplayName("재고 보상 timeout도 원본 실패를 덮어쓰지 않는다")
         void fail_StockCompensationTimeout_PreservesOriginalFailure() {
-            given(memberClient.getMemberGrade(anyLong())).willReturn(mockGradeResponse);
+            given(memberGradeCacheService.getEarnRate(anyLong())).willReturn(0.05);
             given(bookClient.getBooksBulk(anyList())).willReturn(ResponseEntity.ok(List.of(mockBookInfo)));
             given(wrapperRepository.findAllById(any())).willReturn(List.of(mockWrapper));
             willThrow(new RuntimeException("Main Logic Error"))
@@ -209,7 +215,7 @@ class OrderServiceImplTest {
         @DisplayName("예외: 쿠폰 서버 오류 시 OrderException 발생")
         void fail_CouponServiceError() {
             ReflectionTestUtils.setField(request, "couponId", 10L);
-            given(memberClient.getMemberGrade(anyLong())).willReturn(mockGradeResponse);
+            given(memberGradeCacheService.getEarnRate(anyLong())).willReturn(0.05);
             given(bookClient.getBooksBulk(anyList())).willReturn(ResponseEntity.ok(List.of(mockBookInfo)));
             given(wrapperRepository.findAllById(any())).willReturn(List.of(mockWrapper));
 
@@ -224,7 +230,7 @@ class OrderServiceImplTest {
         @Test
         @DisplayName("분기 커버: 회원 등급 조회 실패 시 기본 등급(0.0) 적용")
         void fail_MemberGradeServiceError() {
-            given(memberClient.getMemberGrade(anyLong())).willThrow(new RuntimeException("Member Error"));
+            given(memberGradeCacheService.getEarnRate(anyLong())).willThrow(new RuntimeException("Member Error"));
             given(bookClient.getBooksBulk(anyList())).willReturn(ResponseEntity.ok(List.of(mockBookInfo)));
             given(wrapperRepository.findAllById(any())).willReturn(List.of(mockWrapper));
             // 나머지 Mock 설정...
@@ -244,7 +250,7 @@ class OrderServiceImplTest {
 
             ReflectionTestUtils.setField(request, "orderItems", List.of(noWrapItem));
 
-            given(memberClient.getMemberGrade(anyLong())).willReturn(mockGradeResponse);
+            given(memberGradeCacheService.getEarnRate(anyLong())).willReturn(0.05);
             given(bookClient.getBooksBulk(anyList())).willReturn(ResponseEntity.ok(List.of(mockBookInfo)));
             // WrapperRepo 호출 안됨 검증
 

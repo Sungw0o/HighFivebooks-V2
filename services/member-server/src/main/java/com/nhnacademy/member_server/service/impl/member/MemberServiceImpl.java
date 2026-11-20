@@ -2,6 +2,7 @@ package com.nhnacademy.member_server.service.impl.member;
 
 import com.nhnacademy.member_server.dto.request.member.MemberUpdateRequest;
 import com.nhnacademy.member_server.dto.response.member.MemberResponse;
+import com.nhnacademy.member_server.dto.response.member.MemberGradeResponse;
 import com.nhnacademy.member_server.dto.response.member.SimpleMemberResponse;
 import com.nhnacademy.member_server.entity.member.Member;
 import com.nhnacademy.member_server.entity.member.Role;
@@ -44,6 +45,15 @@ public class MemberServiceImpl implements MemberService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         return MemberResponse.from(member);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MemberGradeResponse getMemberGrade(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+
+        return MemberGradeResponse.from(member);
     }
 
     @Override

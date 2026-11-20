@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import com.nhnacademy.member_server.dto.request.member.MemberUpdateRequest;
 import com.nhnacademy.member_server.dto.response.member.MemberResponse;
+import com.nhnacademy.member_server.dto.response.member.MemberGradeResponse;
 import com.nhnacademy.member_server.dto.response.member.SimpleMemberResponse;
 import com.nhnacademy.member_server.entity.member.Grade;
 import com.nhnacademy.member_server.entity.member.Member;
@@ -96,6 +97,21 @@ class MemberServiceImplTest {
         assertThatThrownBy(() -> memberService.getMember(memberId))
                 .isInstanceOf(BusinessException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.MEMBER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("회원 등급의 포인트 적립률을 조회한다")
+    void getMemberGrade_Success() {
+        Long memberId = 1L;
+        Member member = Member.builder()
+                .id(memberId)
+                .grade(Grade.builder().pointRate(new java.math.BigDecimal("0.025")).build())
+                .build();
+        given(memberRepository.findById(memberId)).willReturn(Optional.of(member));
+
+        MemberGradeResponse response = memberService.getMemberGrade(memberId);
+
+        assertThat(response.getEarnRate()).isEqualTo(0.025);
     }
 
 

@@ -3,6 +3,7 @@ package com.nhnacademy.member_server.controller.swagger;
 import com.nhnacademy.member_server.dto.request.member.DormantRequest;
 import com.nhnacademy.member_server.dto.request.member.MemberUpdateRequest;
 import com.nhnacademy.member_server.dto.response.member.MemberResponse;
+import com.nhnacademy.member_server.dto.response.member.MemberGradeResponse;
 import com.nhnacademy.member_server.dto.response.member.SimpleMemberResponse;
 import com.nhnacademy.member_server.entity.member.Role;
 import io.swagger.v3.oas.annotations.Operation;
@@ -37,6 +38,10 @@ public interface MemberApi {
                     """)))
     ResponseEntity<MemberResponse> getMember(
             @Parameter(hidden = true) @RequestHeader(name = "X-User-ID") Long memberId);
+
+    @Operation(summary = "주문 적립률 조회")
+    @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = MemberGradeResponse.class)))
+    ResponseEntity<MemberGradeResponse> getMemberGrade(@PathVariable Long memberId);
 
     @Operation(summary = "내 정보 수정")
     @ApiResponse(responseCode = "200", description = "수정된 정보 반환", content = @Content(schema = @Schema(implementation = MemberResponse.class)))

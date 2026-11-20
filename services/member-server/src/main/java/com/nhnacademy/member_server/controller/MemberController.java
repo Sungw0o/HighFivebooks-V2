@@ -4,6 +4,7 @@ import com.nhnacademy.member_server.controller.swagger.MemberApi;
 import com.nhnacademy.member_server.dto.request.member.DormantRequest;
 import com.nhnacademy.member_server.dto.request.member.MemberUpdateRequest;
 import com.nhnacademy.member_server.dto.response.member.MemberResponse;
+import com.nhnacademy.member_server.dto.response.member.MemberGradeResponse;
 import com.nhnacademy.member_server.dto.response.member.SimpleMemberResponse;
 import com.nhnacademy.member_server.entity.member.EmailType;
 import com.nhnacademy.member_server.entity.member.Role;
@@ -44,6 +45,11 @@ public class MemberController implements MemberApi {
     public ResponseEntity<MemberResponse> getMember(@RequestHeader(name = "X-User-ID") Long memberId){
         MemberResponse response = memberService.getMember(memberId);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{memberId}/grade")
+    public ResponseEntity<MemberGradeResponse> getMemberGrade(@PathVariable Long memberId) {
+        return ResponseEntity.ok(memberService.getMemberGrade(memberId));
     }
 
     @PutMapping("/me")

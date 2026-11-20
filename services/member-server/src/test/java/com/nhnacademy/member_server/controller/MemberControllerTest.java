@@ -9,12 +9,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhnacademy.member_server.dto.request.member.DormantRequest;
 import com.nhnacademy.member_server.dto.request.member.MemberUpdateRequest;
 import com.nhnacademy.member_server.dto.response.member.MemberResponse;
+import com.nhnacademy.member_server.dto.response.member.MemberGradeResponse;
 import com.nhnacademy.member_server.dto.response.member.SimpleMemberResponse;
 import com.nhnacademy.member_server.entity.member.EmailType;
 import com.nhnacademy.member_server.entity.member.Role;
@@ -80,6 +82,16 @@ class MemberControllerTest {
         mockMvc.perform(get("/api/members/me")
                         .header("X-User-ID", 1L))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("주문 서버가 회원 적립률을 조회한다")
+    void getMemberGradeTest() throws Exception {
+        given(memberService.getMemberGrade(1L)).willReturn(new MemberGradeResponse(0.025));
+
+        mockMvc.perform(get("/api/members/{memberId}/grade", 1L))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.earnRate").value(0.025));
     }
 
     @Test

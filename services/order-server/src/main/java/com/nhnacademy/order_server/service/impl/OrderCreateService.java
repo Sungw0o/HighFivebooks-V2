@@ -14,6 +14,7 @@ import com.nhnacademy.order_server.exception.OrderErrorCode;
 import com.nhnacademy.order_server.exception.OrderException;
 import com.nhnacademy.order_server.repository.DeliveryRepository;
 import com.nhnacademy.order_server.repository.OrderRepository;
+import com.nhnacademy.order_server.observability.OrderCreateMetrics;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class OrderCreateService {
     private final MemberClient memberClient;
     private final CartClient cartClient;
     private final PasswordEncoder passwordEncoder;
+    private final OrderCreateMetrics orderCreateMetrics;
 
     private static final int DEFAULT_DELIVERY_DAYS = 2;
 
@@ -49,25 +51,32 @@ public class OrderCreateService {
         String encryptedPassword = validateAndEncryptPassword(request);
 
         // 2. 주문 엔티티 저장
-        Order order = saveOrder(request, result, orderKey, encryptedPassword, orderData.tempOrderItems());
+        Order order = orderCreateMetrics.record("order_db_save",
+                () -> saveOrder(request, result, orderKey, encryptedPassword, orderData.tempOrderItems()));
         order.updateStatus(DeliveryStatus.PAYMENT_WAITING);
 
         // 3. 포인트 가승인 (TCC Reserve 호출)
         if (request.getUserId() != null && request.getUsedPoint() > 0) {
-            memberClient.reservePoint(PointTransactionRequest.builder()
+            orderCreateMetrics.record("point_reserve", () -> memberClient.reservePoint(PointTransactionRequest.builder()
                     .memberId(request.getUserId())
                     .amount(Long.valueOf(request.getUsedPoint()))
                     .orderId(order.getId())
-                    .build());
+                    .build()));
         }
 
         // 4. 배송 정보 저장
-        saveDelivery(order, request.getRequestDeliveryDate());
+        orderCreateMetrics.record("delivery_db_save", () -> saveDelivery(order, request.getRequestDeliveryDate()));
 
         // 5. 장바구니 비우기 (실패해도 주문 생성은 진행)
-        tryClearCart(request.getUserId());
-
         return OrderCreateResponse.from(order, orderData.firstBookTitle(), request.getOrderItems().size());
+    }
+
+    /**
+     * 주문 트랜잭션이 커밋된 뒤 장바구니를 비운다.
+     * 장바구니 정리 실패는 이미 생성된 주문을 롤백하거나 보상하지 않는다.
+     */
+    public void clearCartAfterCommit(Long userId) {
+        orderCreateMetrics.record("cart_clear", () -> tryClearCart(userId));
     }
 
     private String validateAndEncryptPassword(OrderCreateRequest r) {

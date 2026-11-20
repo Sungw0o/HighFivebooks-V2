@@ -82,3 +82,15 @@ resilience4j:
         failure-rate-threshold: ${CIRCUIT_BREAKER_FAILURE_RATE_THRESHOLD:50}
         wait-duration-in-open-state: ${CIRCUIT_BREAKER_WAIT_DURATION:10s}
         permitted-number-of-calls-in-half-open-state: ${CIRCUIT_BREAKER_HALF_OPEN_CALLS:3}
+
+order:
+  member-grade-cache:
+    type: ${MEMBER_GRADE_CACHE_TYPE:caffeine}
+    ttl: ${MEMBER_GRADE_CACHE_TTL:5m}
+    maximum-size: ${MEMBER_GRADE_CACHE_MAXIMUM_SIZE:10000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health}
