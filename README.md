@@ -23,36 +23,36 @@ NHN Academy 팀 프로젝트(FE 2, BE 5) HighFiveBooks를 팀 프로젝트가 �
 
 ## 내가 맡은 일
 
-**팀 프로젝트 기간 (2025.11–2026.01)**
+**팀 프로젝트 (2025.11–2026.01)**
 
-- 주문 엔티티와 API 명세를 설계했습니다. 주문 정책·포장지·배송비 계산과 재고·포인트·쿠폰을 Feign으로 묶는 주문 생성을 구현했습니다. ([order_server 커밋](https://github.com/nhnacademy-be12-high-five/order_server/commits?author=Sungw0o))
-- 주문 목록·상세 조회, 취소와 반품 분리, 관리자 주문 관리를 구현했습니다. 결제 성공 후처리는 RabbitMQ 메시지로 비동기 처리했습니다.
-- [Eureka Server](https://github.com/nhnacademy-be12-high-five/eureka_server)와 [Config Server](https://github.com/nhnacademy-be12-high-five/config_server)를 구축했습니다. 서비스 공용 GitHub Actions 워크플로우를 만들어 PR 검증과 배포를 나누고, SonarQube 분석과 다중 인스턴스 순차 배포를 붙였습니다.
+- 주문 엔티티와 API를 설계하고, 재고·포인트·쿠폰을 Feign으로 묶는 주문 생성을 구현했습니다. ([order_server 커밋](https://github.com/nhnacademy-be12-high-five/order_server/commits?author=Sungw0o))
+- 주문 조회, 취소·반품, 관리자 주문 관리와 RabbitMQ 결제 성공 후처리를 구현했습니다.
+- [Eureka Server](https://github.com/nhnacademy-be12-high-five/eureka_server)·[Config Server](https://github.com/nhnacademy-be12-high-five/config_server)와 서비스 공용 GitHub Actions 배포 워크플로우를 만들었습니다.
 
 **V2 개인 정리 (2026.07–08)**
 
-- 주문 서버의 실패 경로를 보강했습니다. 외부 호출과 DB 트랜잭션의 경계를 나눴습니다. 상태 변경 Feign 호출의 자동 재시도는 껐습니다. 결제 성공 메시지에는 Retry/DLQ를, 스케줄러에는 ShedLock을 적용했습니다. ([84a398a](https://github.com/Sungw0o/HighFivebooks-V2/commit/84a398a38878ec44b5644e0273e5f707076cdc95), [b4aebb7](https://github.com/Sungw0o/HighFivebooks-V2/commit/b4aebb7f97ac9ef9b4dd7b12ea305e04fc1ef81f), [fa1a794](https://github.com/Sungw0o/HighFivebooks-V2/commit/fa1a79430a12b70aa7204adc72daccbf94f3db1d), [ab8fd14](https://github.com/Sungw0o/HighFivebooks-V2/commit/ab8fd145f18187054341c170314fe35fb5810f9e))
-- 서비스 간 Feign 계약 테스트와 중복·실패 경로 단위 테스트를 추가했습니다. ([c160a01](https://github.com/Sungw0o/HighFivebooks-V2/commit/c160a019b363a493ed08a8e8390cb2348c24c89b), [docs/TCC_FAILURE_MATRIX.md](docs/TCC_FAILURE_MATRIX.md))
+- 주문 실패 경로를 보강했습니다. 트랜잭션 경계 분리, 상태 변경 Feign 재시도 해제, Retry/DLQ, ShedLock을 적용했습니다. ([84a398a](https://github.com/Sungw0o/HighFivebooks-V2/commit/84a398a38878ec44b5644e0273e5f707076cdc95), [b4aebb7](https://github.com/Sungw0o/HighFivebooks-V2/commit/b4aebb7f97ac9ef9b4dd7b12ea305e04fc1ef81f), [fa1a794](https://github.com/Sungw0o/HighFivebooks-V2/commit/fa1a79430a12b70aa7204adc72daccbf94f3db1d), [ab8fd14](https://github.com/Sungw0o/HighFivebooks-V2/commit/ab8fd145f18187054341c170314fe35fb5810f9e))
+- Feign 계약 테스트와 중복·실패 경로 테스트를 추가했습니다. ([c160a01](https://github.com/Sungw0o/HighFivebooks-V2/commit/c160a019b363a493ed08a8e8390cb2348c24c89b), [실패 지점 표](docs/TCC_FAILURE_MATRIX.md))
 
 ## 문제를 고친 기록
 
 ### 1. 결제 성공 메시지의 반복 실패와 중복 확정
 
-Feign 자동 재시도와 RabbitMQ 재처리가 겹치면 같은 확정 호출이 반복될 수 있던 문제입니다. 문제, 원인, 해결, 결과는 아래 Design Highlights의 [반복 실패 메시지 Retry/DLQ 격리](#반복-실패-메시지-retrydlq-격리)와 [TCC 기반 주문 정합성과 멱등성](#tcc-기반-주문-정합성과-멱등성)에 정리했습니다. 처리 순서는 [핵심 흐름](#핵심-흐름-결제-성공-메시지-처리)에 그렸습니다.
+Feign 재시도와 RabbitMQ 재처리가 겹쳐 같은 확정이 반복될 수 있던 문제입니다. 내용은 [Retry/DLQ 격리](#반복-실패-메시지-retrydlq-격리)와 [TCC 멱등성](#tcc-기반-주문-정합성과-멱등성)에, 처리 순서는 [핵심 흐름](#핵심-흐름-결제-성공-메시지-처리)에 정리했습니다.
 
 ### 2. 서버 두 대에서 주문 스케줄러 중복 실행
 
-- **문제**: 결제 대기 만료 주문 취소(10분 주기)와 배송 완료·구매 확정 일괄 처리(매일 03시)가 서버마다 따로 실행될 수 있었습니다.
-- **원인**: 팀 배포 설정은 order-server를 두 인스턴스로 띄웠습니다([maven.yml#L40](services/order-server/.github/workflows/maven.yml#L40)). 기존 스케줄러에는 `@Scheduled`만 있어서 두 인스턴스가 같은 주문을 함께 취소하거나 구매 확정할 수 있었습니다. 그러면 보상 호출과 포인트 적립 메시지가 두 번 나갑니다.
-- **해결**: order-server가 이미 연결하던 Redis로 ShedLock을 적용했습니다. 두 작업에 락 이름과 `lockAtMostFor`·`lockAtLeastFor`를 지정했습니다. ([SchedulerLockConfig](services/order-server/src/main/java/com/nhnacademy/order_server/config/SchedulerLockConfig.java), [OrderCancelScheduler](services/order-server/src/main/java/com/nhnacademy/order_server/scheduler/OrderCancelScheduler.java))
-- **결과**: `SchedulerLockConfigTest`와 `OrderCancelSchedulerLockTest`로 락 설정을 검증했습니다. 선택 근거는 [docs/order-resilience-evidence.md](docs/order-resilience-evidence.md)에 남겼습니다. ([84a398a](https://github.com/Sungw0o/HighFivebooks-V2/commit/84a398a38878ec44b5644e0273e5f707076cdc95))
+- **문제**: 미결제 주문 취소와 구매 확정 일괄 처리가 서버마다 따로 돌 수 있었습니다.
+- **원인**: 배포 설정이 주문 서버를 두 대로 띄웠고([maven.yml#L40](services/order-server/.github/workflows/maven.yml#L40)), 스케줄러에는 `@Scheduled`만 있었습니다. 같은 주문에 보상 호출과 포인트 적립 메시지가 두 번 나갈 수 있었습니다.
+- **해결**: 주문 서버가 이미 쓰던 Redis로 ShedLock을 적용했습니다. ([SchedulerLockConfig](services/order-server/src/main/java/com/nhnacademy/order_server/config/SchedulerLockConfig.java), [OrderCancelScheduler](services/order-server/src/main/java/com/nhnacademy/order_server/scheduler/OrderCancelScheduler.java))
+- **결과**: 락 설정을 테스트 2개로 검증했고, 선택 근거를 [문서](docs/order-resilience-evidence.md)에 남겼습니다. ([84a398a](https://github.com/Sungw0o/HighFivebooks-V2/commit/84a398a38878ec44b5644e0273e5f707076cdc95))
 
 ### 3. 외부 호출이 DB 트랜잭션 안에서 실행되던 구조
 
-- **문제**: 결제 성공 처리 중 외부 서비스가 느려지면 주문 DB 트랜잭션도 그만큼 길어지는 구조였습니다.
-- **원인**: `OrderServiceImpl` 클래스 전체에 `@Transactional`이 걸려 있었습니다. 초기 코드의 `processPaymentSuccessMessage`에서 주문 상태 변경 뒤 쿠폰·재고·포인트 Feign 호출이 같은 트랜잭션 안에서 실행되는 것을 확인했습니다.
-- **해결**: 외부 호출 조율은 트랜잭션 밖에서 하도록 바꿨습니다. 주문 상태 변경만 [OrderStatusMutationService](services/order-server/src/main/java/com/nhnacademy/order_server/service/impl/OrderStatusMutationService.java)의 짧은 트랜잭션으로 옮겼습니다.
-- **결과**: [OrderTransactionBoundaryTest](services/order-server/src/test/java/com/nhnacademy/order_server/service/impl/OrderTransactionBoundaryTest.java)가 조율 메서드에는 `@Transactional`이 없고 상태 변경 메서드에만 있는지 검사합니다. 트랜잭션을 다시 씌우면 이 테스트가 실패합니다. ([fa1a794](https://github.com/Sungw0o/HighFivebooks-V2/commit/fa1a79430a12b70aa7204adc72daccbf94f3db1d))
+- **문제**: 외부 서비스가 느려지면 주문 DB 트랜잭션도 그만큼 길어졌습니다.
+- **원인**: `OrderServiceImpl` 전체에 `@Transactional`이 걸려 있었습니다. 결제 성공 처리에서 쿠폰·재고·포인트 Feign 호출이 같은 트랜잭션 안에 있었습니다.
+- **해결**: 외부 호출은 트랜잭션 밖에서 하고, 상태 변경만 [OrderStatusMutationService](services/order-server/src/main/java/com/nhnacademy/order_server/service/impl/OrderStatusMutationService.java)의 짧은 트랜잭션으로 옮겼습니다.
+- **결과**: 조율 메서드에 트랜잭션을 다시 씌우면 [OrderTransactionBoundaryTest](services/order-server/src/test/java/com/nhnacademy/order_server/service/impl/OrderTransactionBoundaryTest.java)가 실패합니다. ([fa1a794](https://github.com/Sungw0o/HighFivebooks-V2/commit/fa1a79430a12b70aa7204adc72daccbf94f3db1d))
 
 ## 💻 Tech Stacks
 
