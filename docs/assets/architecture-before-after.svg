@@ -1,0 +1,158 @@
+<svg viewBox="0 0 1480 1000" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', 'Malgun Gothic', system-ui, sans-serif" role="img" aria-labelledby="ttl desc">
+  <title id="ttl">HighFiveBooks 아키텍처 전환 (AS-IS → TO-BE)</title>
+  <desc id="desc">기존 Spring Cloud 기반 MSA(AS-IS)를 Kubernetes-native 구조(TO-BE)로 전환한 비교 다이어그램. Eureka는 Service DNS, Config Server는 ConfigMap/Secret, Gateway는 Ingress, Thymeleaf는 React로 대체하고 DLQ, ShedLock, CircuitBreaker, order replica 2를 추가.</desc>
+
+  <rect x="0" y="0" width="1480" height="1000" fill="#F6F8FA"/>
+
+  <text x="740" y="40" text-anchor="middle" font-size="26" font-weight="700" fill="#1F2328">HighFiveBooks 아키텍처 전환</text>
+  <text x="740" y="66" text-anchor="middle" font-size="15" fill="#656D76">Spring Cloud 기반 MSA  →  Kubernetes-native 구조 (리팩토링 전 / 후)</text>
+
+  <rect x="40" y="82" width="14" height="14" rx="3" fill="#FBF1E7" stroke="#C08A57"/>
+  <text x="60" y="94" font-size="12.5" fill="#656D76">AS-IS · 기존</text>
+  <rect x="150" y="82" width="14" height="14" rx="3" fill="#EAF1FF" stroke="#326CE5"/>
+  <text x="170" y="94" font-size="12.5" fill="#656D76">TO-BE · V2</text>
+  <rect x="255" y="82" width="14" height="14" rx="3" fill="#E7F6EE" stroke="#2E8B57"/>
+  <text x="275" y="94" font-size="12.5" fill="#656D76">신규 / 개선</text>
+  <text x="392" y="94" font-size="12.5" fill="#C1432E">✕ 제거된 구성</text>
+
+  <!-- ===================== AS-IS BAND ===================== -->
+  <rect x="30" y="110" width="1420" height="360" rx="18" fill="#FFFFFF" stroke="#E4C8AB" stroke-width="1.5"/>
+  <rect x="30" y="110" width="150" height="360" rx="18" fill="#FBF1E7"/>
+  <text x="105" y="285" text-anchor="middle" font-size="19" font-weight="700" fill="#9A5B1E" transform="rotate(-90 105 285)">AS-IS · 기존</text>
+
+  <rect x="205" y="255" width="96" height="70" rx="10" fill="#EEF1F4" stroke="#B9C1CA"/>
+  <text x="253" y="285" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2328">Client</text>
+  <text x="253" y="304" text-anchor="middle" font-size="11.5" fill="#656D76">브라우저</text>
+
+  <rect x="325" y="230" width="120" height="52" rx="10" fill="#FBF1E7" stroke="#C08A57"/>
+  <text x="385" y="252" text-anchor="middle" font-size="13" font-weight="600" fill="#1F2328">Cloudflare</text>
+  <text x="385" y="269" text-anchor="middle" font-size="11" fill="#656D76">SSL · nhnbook.shop</text>
+  <rect x="325" y="298" width="120" height="52" rx="10" fill="#FBF1E7" stroke="#C08A57"/>
+  <text x="385" y="320" text-anchor="middle" font-size="13" font-weight="600" fill="#1F2328">Nginx</text>
+  <text x="385" y="337" text-anchor="middle" font-size="11" fill="#656D76">정적/라우팅</text>
+
+  <rect x="470" y="150" width="150" height="60" rx="10" fill="#FBF1E7" stroke="#C08A57"/>
+  <text x="545" y="175" text-anchor="middle" font-size="13" font-weight="600" fill="#C1432E">Thymeleaf front ✕</text>
+  <text x="545" y="193" text-anchor="middle" font-size="11" fill="#656D76">front_server ×2</text>
+
+  <rect x="470" y="245" width="150" height="60" rx="10" fill="#FBF1E7" stroke="#C08A57"/>
+  <text x="545" y="270" text-anchor="middle" font-size="13" font-weight="600" fill="#C1432E">Gateway ✕</text>
+  <text x="545" y="288" text-anchor="middle" font-size="11" fill="#656D76">JWT 인증 · 필터</text>
+
+  <rect x="650" y="150" width="160" height="60" rx="10" fill="#FBF1E7" stroke="#C08A57"/>
+  <text x="730" y="175" text-anchor="middle" font-size="13" font-weight="600" fill="#C1432E">Config Server ✕</text>
+  <text x="730" y="193" text-anchor="middle" font-size="11" fill="#656D76">YML (외부 git)</text>
+  <rect x="650" y="245" width="160" height="60" rx="10" fill="#FBF1E7" stroke="#C08A57"/>
+  <text x="730" y="270" text-anchor="middle" font-size="13" font-weight="600" fill="#C1432E">Eureka ✕</text>
+  <text x="730" y="288" text-anchor="middle" font-size="11" fill="#656D76">Service Registry</text>
+
+  <rect x="845" y="140" width="360" height="290" rx="12" fill="#FAFBFC" stroke="#C08A57" stroke-dasharray="4 3"/>
+  <text x="1025" y="160" text-anchor="middle" font-size="12.5" font-weight="700" fill="#9A5B1E">Domain Services (각 ×2)</text>
+  <g font-size="12.5" font-weight="600" fill="#1F2328">
+    <rect x="865" y="175" width="150" height="44" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="940" y="202" text-anchor="middle">order-server</text>
+    <rect x="1035" y="175" width="150" height="44" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="1110" y="202" text-anchor="middle">payment-server</text>
+    <rect x="865" y="230" width="150" height="44" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="940" y="257" text-anchor="middle">coupon-server</text>
+    <rect x="1035" y="230" width="150" height="44" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="1110" y="257" text-anchor="middle">member-server</text>
+    <rect x="865" y="285" width="150" height="44" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="940" y="312" text-anchor="middle">book-server</text>
+  </g>
+  <text x="1025" y="362" text-anchor="middle" font-size="11.5" fill="#C1432E">Feign 기본 retry · 외부 I/O가 단일 트랜잭션에 혼재</text>
+  <text x="1025" y="381" text-anchor="middle" font-size="11.5" fill="#C1432E">스케줄러 중복 실행 위험 · poison message 재소비</text>
+  <text x="1025" y="407" text-anchor="middle" font-size="11.5" fill="#656D76">서비스 위치 등록/조회 → Eureka</text>
+
+  <g font-size="12" font-weight="600" fill="#1F2328">
+    <rect x="1240" y="150" width="180" height="40" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="1330" y="175" text-anchor="middle">MySQL · 읽기/쓰기</text>
+    <rect x="1240" y="198" width="180" height="40" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="1330" y="223" text-anchor="middle">Redis</text>
+    <rect x="1240" y="246" width="180" height="40" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="1330" y="271" text-anchor="middle">RabbitMQ · 메시징</text>
+    <rect x="1240" y="294" width="180" height="40" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="1330" y="319" text-anchor="middle">Elasticsearch</text>
+    <rect x="1240" y="342" width="180" height="40" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="1330" y="367" text-anchor="middle">Toss · 결제</text>
+  </g>
+
+  <g stroke="#B0A08C" stroke-width="1.6" fill="none" marker-end="url(#ar1)">
+    <path d="M301 290 H322"/>
+    <path d="M445 256 H468"/>
+    <path d="M445 324 C455 324 460 190 468 185"/>
+    <path d="M620 180 H648"/>
+    <path d="M620 275 H648"/>
+    <path d="M810 180 C825 180 830 250 843 260"/>
+    <path d="M810 275 H843"/>
+    <path d="M1205 260 H1238"/>
+  </g>
+
+  <!-- ===================== TO-BE BAND ===================== -->
+  <rect x="30" y="500" width="1420" height="380" rx="18" fill="#FFFFFF" stroke="#B7CCF2" stroke-width="1.5"/>
+  <rect x="30" y="500" width="150" height="380" rx="18" fill="#EAF1FF"/>
+  <text x="105" y="690" text-anchor="middle" font-size="19" font-weight="700" fill="#1B49B6" transform="rotate(-90 105 690)">TO-BE · V2</text>
+
+  <rect x="205" y="655" width="96" height="70" rx="10" fill="#EEF1F4" stroke="#B9C1CA"/>
+  <text x="253" y="685" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2328">Client</text>
+  <text x="253" y="704" text-anchor="middle" font-size="11.5" fill="#656D76">브라우저</text>
+
+  <rect x="325" y="590" width="130" height="58" rx="10" fill="#E7F6EE" stroke="#2E8B57"/>
+  <text x="390" y="614" text-anchor="middle" font-size="13" font-weight="600" fill="#1F2328">React storefront</text>
+  <text x="390" y="632" text-anchor="middle" font-size="11" fill="#2E8B57">구 Thymeleaf</text>
+  <rect x="325" y="662" width="130" height="58" rx="10" fill="#EAF1FF" stroke="#326CE5"/>
+  <text x="390" y="686" text-anchor="middle" font-size="13" font-weight="600" fill="#1F2328">Ingress</text>
+  <text x="390" y="704" text-anchor="middle" font-size="11" fill="#326CE5">구 Gateway</text>
+
+  <rect x="485" y="590" width="175" height="58" rx="10" fill="#EAF1FF" stroke="#326CE5"/>
+  <text x="572" y="614" text-anchor="middle" font-size="13" font-weight="600" fill="#1F2328">ConfigMap / Secret</text>
+  <text x="572" y="632" text-anchor="middle" font-size="11" fill="#326CE5">구 Config Server</text>
+  <rect x="485" y="662" width="175" height="58" rx="10" fill="#EAF1FF" stroke="#326CE5"/>
+  <text x="572" y="686" text-anchor="middle" font-size="13" font-weight="600" fill="#1F2328">Service DNS</text>
+  <text x="572" y="704" text-anchor="middle" font-size="11" fill="#326CE5">구 Eureka</text>
+
+  <rect x="695" y="540" width="510" height="300" rx="12" fill="#FAFBFF" stroke="#326CE5" stroke-dasharray="4 3"/>
+  <text x="950" y="560" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1B49B6">Kubernetes namespace · highfivebooks</text>
+  <g font-size="12.5" font-weight="600" fill="#1F2328">
+    <rect x="715" y="575" width="160" height="46" rx="8" fill="#E7F0FF" stroke="#7FA6EC"/><text x="795" y="595" text-anchor="middle">order-server ×2</text><text x="795" y="612" text-anchor="middle" font-size="10.5" fill="#2E8B57">ShedLock</text>
+    <rect x="890" y="575" width="150" height="46" rx="8" fill="#E7F0FF" stroke="#7FA6EC"/><text x="965" y="602" text-anchor="middle">payment-server</text>
+    <rect x="1055" y="575" width="130" height="46" rx="8" fill="#E7F0FF" stroke="#7FA6EC"/><text x="1120" y="602" text-anchor="middle">book-server</text>
+    <rect x="715" y="632" width="160" height="46" rx="8" fill="#E7F0FF" stroke="#7FA6EC"/><text x="795" y="659" text-anchor="middle">member-server</text>
+    <rect x="890" y="632" width="150" height="46" rx="8" fill="#E7F0FF" stroke="#7FA6EC"/><text x="965" y="659" text-anchor="middle">coupon-server</text>
+    <rect x="1055" y="632" width="130" height="46" rx="8" fill="#E7F0FF" stroke="#7FA6EC"/><text x="1120" y="659" text-anchor="middle">probe R/L</text>
+  </g>
+  <g font-size="11.5" font-weight="600">
+    <rect x="715" y="692" width="230" height="34" rx="7" fill="#E7F6EE" stroke="#2E8B57"/><text x="830" y="714" text-anchor="middle" fill="#1F2328">Feign NEVER_RETRY + CircuitBreaker</text>
+    <rect x="955" y="692" width="230" height="34" rx="7" fill="#E7F6EE" stroke="#2E8B57"/><text x="1070" y="714" text-anchor="middle" fill="#1F2328">트랜잭션 경계 분리 + 보상(TCC)</text>
+  </g>
+  <rect x="715" y="736" width="470" height="34" rx="7" fill="#E7F6EE" stroke="#2E8B57"/>
+  <text x="950" y="758" text-anchor="middle" font-size="11.5" font-weight="600" fill="#1F2328">RabbitMQ payment-success · Retry backoff · DLQ 격리</text>
+  <text x="950" y="800" text-anchor="middle" font-size="11" fill="#656D76">Argo Rollouts(Canary) · Argo CD(GitOps) · Service DNS 기반 Feign 호출</text>
+
+  <g font-size="12" font-weight="600" fill="#1F2328">
+    <rect x="1240" y="548" width="180" height="38" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="1330" y="572" text-anchor="middle">MySQL</text>
+    <rect x="1240" y="592" width="180" height="38" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="1330" y="616" text-anchor="middle">Redis · ShedLock</text>
+    <rect x="1240" y="636" width="180" height="38" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="1330" y="660" text-anchor="middle">RabbitMQ + DLQ</text>
+    <rect x="1240" y="680" width="180" height="38" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="1330" y="704" text-anchor="middle">Elasticsearch(Nori)</text>
+    <rect x="1240" y="724" width="180" height="38" rx="8" fill="#EEF1F4" stroke="#B9C1CA"/><text x="1330" y="748" text-anchor="middle">MinIO · Toss</text>
+  </g>
+
+  <g stroke="#7FA6EC" stroke-width="1.6" fill="none" marker-end="url(#ar2)">
+    <path d="M301 690 H322"/>
+    <path d="M455 691 H482"/>
+    <path d="M455 619 C468 619 472 660 482 668"/>
+    <path d="M660 619 C675 619 682 585 693 595"/>
+    <path d="M660 691 C675 691 682 640 693 645"/>
+    <path d="M1205 600 H1238"/>
+  </g>
+
+  <!-- ===================== MAPPING STRIP ===================== -->
+  <text x="740" y="915" text-anchor="middle" font-size="14" font-weight="700" fill="#1F2328">전환 매핑 &amp; 신규 안정성 장치</text>
+  <g font-size="12" font-weight="600">
+    <rect x="60" y="930" width="250" height="46" rx="9" fill="#FFFFFF" stroke="#B7CCF2"/>
+    <text x="185" y="951" text-anchor="middle" fill="#C1432E">Eureka</text><text x="185" y="968" text-anchor="middle" fill="#1B49B6">→ Kubernetes Service DNS</text>
+    <rect x="330" y="930" width="270" height="46" rx="9" fill="#FFFFFF" stroke="#B7CCF2"/>
+    <text x="465" y="951" text-anchor="middle" fill="#C1432E">Config Server</text><text x="465" y="968" text-anchor="middle" fill="#1B49B6">→ ConfigMap / Secret</text>
+    <rect x="620" y="930" width="230" height="46" rx="9" fill="#FFFFFF" stroke="#B7CCF2"/>
+    <text x="735" y="951" text-anchor="middle" fill="#C1432E">Gateway</text><text x="735" y="968" text-anchor="middle" fill="#1B49B6">→ Ingress</text>
+    <rect x="870" y="930" width="250" height="46" rx="9" fill="#FFFFFF" stroke="#B7CCF2"/>
+    <text x="995" y="951" text-anchor="middle" fill="#C1432E">Thymeleaf front</text><text x="995" y="968" text-anchor="middle" fill="#1B49B6">→ React storefront</text>
+    <rect x="1140" y="930" width="280" height="46" rx="9" fill="#E7F6EE" stroke="#2E8B57"/>
+    <text x="1280" y="951" text-anchor="middle" fill="#2E8B57">신규 안정성</text><text x="1280" y="968" text-anchor="middle" fill="#1F2328">DLQ · ShedLock · CB · replica ×2</text>
+  </g>
+
+  <defs>
+    <marker id="ar1" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#B0A08C"/></marker>
+    <marker id="ar2" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0 0 L9 4.5 L0 9 z" fill="#7FA6EC"/></marker>
+  </defs>
+</svg>
