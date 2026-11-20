@@ -1,0 +1,5 @@
+services:
+  order-server:
+    environment:
+      MEMBER_GRADE_CACHE_TYPE: caffeine
+      MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: health,metrics,prometheus

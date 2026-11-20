@@ -1,0 +1,156 @@
+{
+    "metrics": {
+        "http_req_sending": {
+            "med": 0.025828,
+            "max": 0.660747,
+            "p(90)": 0.063395,
+            "p(95)": 0.081256,
+            "avg": 0.03531893530499074,
+            "min": 0.004336
+        },
+        "checks": {
+            "passes": 1082,
+            "fails": 0,
+            "value": 1
+        },
+        "http_req_receiving": {
+            "max": 1.837894,
+            "p(90)": 0.315115,
+            "p(95)": 0.425042,
+            "avg": 0.15874558595194088,
+            "min": 0.012473,
+            "med": 0.115561
+        },
+        "http_req_waiting": {
+            "med": 108.897768,
+            "max": 175.108765,
+            "p(90)": 139.653753,
+            "p(95)": 154.338847,
+            "avg": 113.23640405175611,
+            "min": 77.431609
+        },
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 541,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "iterations": {
+            "count": 541,
+            "rate": 8.85556917232795
+        },
+        "order_create_failure": {
+            "fails": 541,
+            "passes": 0,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "http_reqs": {
+            "count": 541,
+            "rate": 8.85556917232795
+        },
+        "order_create_duration": {
+            "p(90)": 139.900178,
+            "p(95)": 154.501911,
+            "avg": 113.43046857301306,
+            "min": 77.492677,
+            "med": 108.957434,
+            "max": 175.343782,
+            "thresholds": {
+                "p(95)<1000": false
+            }
+        },
+        "http_req_connecting": {
+            "min": 0,
+            "med": 0,
+            "max": 5.565593,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0.07219811460258779
+        },
+        "http_req_duration": {
+            "p(95)": 154.501911,
+            "avg": 113.43046857301304,
+            "min": 77.492677,
+            "med": 108.957434,
+            "max": 175.343782,
+            "p(90)": 139.900178
+        },
+        "vus_max": {
+            "value": 10,
+            "min": 10,
+            "max": 10
+        },
+        "http_req_tls_handshaking": {
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "avg": 0,
+            "min": 0
+        },
+        "vus": {
+            "value": 1,
+            "min": 1,
+            "max": 10
+        },
+        "data_sent": {
+            "rate": 2639.8435333820207,
+            "count": 161272
+        },
+        "iteration_duration": {
+            "avg": 1114.477600543437,
+            "min": 1078.642656,
+            "med": 1109.745791,
+            "max": 1184.806318,
+            "p(90)": 1140.768332,
+            "p(95)": 1155.141546
+        },
+        "http_req_duration{expected_response:true}": {
+            "max": 175.343782,
+            "p(90)": 139.900178,
+            "p(95)": 154.501911,
+            "avg": 113.43046857301304,
+            "min": 77.492677,
+            "med": 108.957434
+        },
+        "data_received": {
+            "count": 131463,
+            "rate": 2151.903308875692
+        },
+        "http_req_blocked": {
+            "min": 0.001541,
+            "med": 0.006516,
+            "max": 9.58277,
+            "p(90)": 0.009947,
+            "p(95)": 0.011632,
+            "avg": 0.15729161367837347
+        }
+    },
+    "root_group": {
+        "name": "",
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+                "order create status is 201": {
+                    "fails": 0,
+                    "name": "order create status is 201",
+                    "path": "::order create status is 201",
+                    "id": "d588a4cf5a8ac98fbb09c7655ccb5d6b",
+                    "passes": 541
+                },
+                "order create has orderKey": {
+                    "name": "order create has orderKey",
+                    "path": "::order create has orderKey",
+                    "id": "6c4d69b364014a3d5395c19daea4f91a",
+                    "passes": 541,
+                    "fails": 0
+                }
+            }
+    }
+}

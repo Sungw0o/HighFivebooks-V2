@@ -28,6 +28,7 @@ x-app-env: &app-env
   PAYMENT_SERVICE_URL: http://payment-server:8080
   ORDER_SERVICE_URL: http://order-server:8080
   MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: update
 
 x-app-healthcheck: &app-healthcheck
   test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
@@ -96,7 +97,9 @@ services:
       retries: 10
 
   elasticsearch:
-    image: ghcr.io/sungw0o/highfivebooks-v2/elasticsearch-nori:8.18.8
+    build:
+      context: ./infra/elasticsearch
+    image: highfivebooks-v2/elasticsearch-nori:local
     container_name: highfive-elasticsearch
     restart: unless-stopped
     ports:
